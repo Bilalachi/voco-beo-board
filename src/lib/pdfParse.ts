@@ -1,11 +1,32 @@
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.js?url";
 import type { BeoEventDraft } from "../types";
+import type { TextItem } from "./beoParser";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export async function loadPdf(data: ArrayBuffer) {
   return pdfjsLib.getDocument({ data }).promise;
+}
+
+/** Raw text items (with positions) for every page, used by the BEO parser. */
+export async function pdfToItems(data: ArrayBuffer): Promise<{ pages: TextItem[][]; pageWidth: number }> {
+  const pdf = await loadPdf(data);
+  const pages: TextItem[][] = [];
+  let pageWidth = 612;
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    if (i === 1) pageWidth = page.view[2] - page.view[0];
+    const content = await page.getTextContent();
+    const items: TextItem[] = [];
+    content.items.forEach((raw) => {
+      const it = raw as { transform: number[]; str: string; width: number };
+      if (typeof it.str !== "string") return;
+      items.push({ str: it.str, x: it.transform[4], y: it.transform[5], width: it.width });
+    });
+    pages.push(items);
+  }
+  return { pages, pageWidth };
 }
 
 /** Reconstructs reading-order lines from a PDF page's raw text items. */
@@ -56,10 +77,9 @@ function toISODate(str: string): string {
 }
 
 /**
- * Best-effort heuristic extraction. BEO layouts vary a lot between
- * properties, so this is intentionally generous with pattern matching —
- * the UI always shows an editable review form afterwards so staff can
- * correct anything the parser missed or misread.
+ * Fallback heuristic extraction, used only when the structured BEO parser
+ * (beoParser.ts) can't find any days in the PDF. The UI always shows an
+ * editable review form afterwards so staff can correct anything.
  */
 export function parseBeoLines(lines: string[]): Partial<BeoEventDraft> {
   const data: Partial<BeoEventDraft> = {};
