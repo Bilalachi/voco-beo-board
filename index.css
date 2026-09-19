@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-neutral-50 text-ink font-sans antialiased;
+}
+
+.font-display {
+  font-family: "Fraunces", serif;
+}
+
+/* subtle honeycomb-dot texture, used sparingly on header bands */
+.honeycomb-bg {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
+  background-size: 14px 14px;
+}
+
+::selection {
+  background-color: #F2B705;
+  color: #15191C;
+}
