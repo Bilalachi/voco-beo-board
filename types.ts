@@ -52,7 +52,7 @@ export interface BeoEvent {
   updated_at: string;
 }
 
-export type BeoEventDraft = Omit<
+export type BeoEventDraft = Omit
   BeoEvent,
   | "id"
   | "created_by"

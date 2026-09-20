@@ -1,14 +1,47 @@
 import { CATEGORIES, type BeoEvent, type CategoryDef } from "../types";
 
-function previewFor(ev: BeoEvent, cat: CategoryDef): { preview: string; sub: string } {
-  const d: any = (ev as any)[cat.key] || {};
-  let preview = "";
-  if (cat.key === "lunch" || cat.key === "dinner") preview = (d.menu || "").split("\n")[0];
-  else if (cat.key === "avit") preview = (d.details || "").split("\n")[0];
-  else if (cat.key === "banquet") preview = d.setup || (d.notes || "").split("\n")[0];
-  else preview = (d.item || "").split("\n")[0];
-  const sub = [d.time, d.location].filter(Boolean).join(" · ");
-  return { preview, sub };
+interface Preview {
+  lines: string[];
+  sub: string;
+  mono?: boolean; // show the main line in a monospace, larger style (internet code)
+  plain?: boolean; // never show the "not set" italic style (used for "tap to view")
+}
+
+const first = (s?: string) => (s || "").split("\n")[0];
+
+function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
+  switch (cat.key) {
+    case "internet":
+      return { lines: [ev.internet_code || ""], sub: "", mono: true };
+    case "banquet":
+      return { lines: [ev.banquet?.setup || ""], sub: "" };
+    case "avit":
+      // details are only shown after tapping the box
+      return { lines: [ev.avit?.details ? "Tap to view details" : ""], sub: "", plain: true };
+    case "payment": {
+      const d = ev.payment || {};
+      return {
+        lines: [d.method ? `Payment: ${d.method}` : ""],
+        sub: first(d.charges),
+      };
+    }
+    case "lunch":
+    case "dinner": {
+      const d = ev[cat.key] || {};
+      return { lines: [first(d.menu)], sub: [d.time, d.location].filter(Boolean).join(" · ") };
+    }
+    case "am_break":
+    case "pm_break": {
+      const d = ev[cat.key] || {};
+      if (d.drinks_time || d.drinks) {
+        // coffee & tea and food are shown separately, each with its own time
+        const lines = [`Coffee & tea · ${d.drinks_time || d.time || ""}`.replace(/ · $/, "")];
+        if (d.item || d.time) lines.push(`Food · ${d.time || ""}`.replace(/ · $/, ""));
+        return { lines, sub: d.location || "" };
+      }
+      return { lines: [first(d.item)], sub: [d.time, d.location].filter(Boolean).join(" · ") };
+    }
+  }
 }
 
 export default function CategoryGrid({
@@ -21,8 +54,9 @@ export default function CategoryGrid({
   return (
     <div className="grid grid-cols-2 gap-2.5">
       {CATEGORIES.map((cat) => {
-        const { preview, sub } = previewFor(event, cat);
-        const empty = !preview;
+        const { lines, sub, mono, plain } = previewFor(event, cat);
+        const shown = lines.filter(Boolean);
+        const empty = shown.length === 0;
         return (
           <button
             key={cat.key}
@@ -32,9 +66,22 @@ export default function CategoryGrid({
             <span className={`font-mono text-[10.5px] font-semibold tracking-wide ${cat.colorClass.split(" ")[1]}`}>
               {cat.label.toUpperCase()}
             </span>
-            <span className={`text-[13px] font-medium leading-snug ${empty ? "italic text-ink-faint" : "text-ink"}`}>
-              {preview || "Not set — tap to add"}
-            </span>
+            {empty ? (
+              <span className="text-[13px] font-medium leading-snug italic text-ink-faint">
+                Not set — tap to add
+              </span>
+            ) : (
+              shown.map((line, i) => (
+                <span
+                  key={i}
+                  className={`leading-snug text-ink ${
+                    mono ? "font-mono text-[16px] font-semibold tracking-wide" : "text-[13px] font-medium"
+                  } ${plain ? "text-ink-soft" : ""}`}
+                >
+                  {line}
+                </span>
+              ))
+            )}
             {sub && <span className="font-mono text-[11px] text-ink-soft mt-auto">{sub}</span>}
           </button>
         );

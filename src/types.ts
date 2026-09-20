@@ -1,8 +1,10 @@
 export interface MealSection {
-  time?: string;
+  time?: string;         // for breaks: the FOOD time
   location?: string;
-  item?: string;   // used by am_break / pm_break
-  menu?: string;    // used by lunch / dinner
+  item?: string;         // used by am_break / pm_break (food items)
+  menu?: string;         // used by lunch / dinner
+  drinks_time?: string;  // breaks only: coffee & tea time (may be a longer "continuous" window)
+  drinks?: string;       // breaks only: coffee & tea items
 }
 
 export interface AvitSection {
@@ -14,13 +16,20 @@ export interface BanquetSection {
   notes?: string;
 }
 
+export interface PaymentSection {
+  method?: string;
+  charges?: string;
+  notes?: string;
+}
+
 export interface BeoEvent {
   id: string;
   name: string;
   event_date: string;   // YYYY-MM-DD
   event_time: string;
   room: string;
-  guests: number | null;
+  guests: number | null;           // guaranteed
+  guests_expected: number | null;  // expected
   internet_code: string;
 
   am_break: MealSection;
@@ -29,6 +38,7 @@ export interface BeoEvent {
   dinner: MealSection;
   avit: AvitSection;
   banquet: BanquetSection;
+  payment: PaymentSection;
 
   pdf_path: string | null;
   pdf_name: string | null;
@@ -48,22 +58,34 @@ export type BeoEventDraft = Omit<
   | "created_by"
   | "uploaded_at"
   | "updated_by"
-  | "updated_at"
   | "created_by_name"
   | "updated_by_name"
 >;
 
 export interface CategoryDef {
-  key: "am_break" | "pm_break" | "lunch" | "dinner" | "avit" | "banquet";
+  key: "internet" | "banquet" | "am_break" | "pm_break" | "lunch" | "dinner" | "payment" | "avit";
   label: string;
   colorClass: string; // tailwind text/border color class
 }
 
+// The order here is the order of the boxes on the event page (two per row).
 export const CATEGORIES: CategoryDef[] = [
+  { key: "internet", label: "Internet Code", colorClass: "border-sky-600 text-sky-700" },
+  { key: "banquet", label: "Set-Up", colorClass: "border-rose-600 text-rose-700" },
   { key: "am_break", label: "AM Coffee Break", colorClass: "border-amber-500 text-amber-700" },
   { key: "pm_break", label: "PM Coffee Break", colorClass: "border-lime-600 text-lime-700" },
   { key: "lunch", label: "Lunch", colorClass: "border-orange-600 text-orange-700" },
   { key: "dinner", label: "Dinner", colorClass: "border-purple-600 text-purple-700" },
+  { key: "payment", label: "Payment & Charges", colorClass: "border-emerald-600 text-emerald-700" },
   { key: "avit", label: "IT / AV", colorClass: "border-petrol-500 text-petrol-600" },
-  { key: "banquet", label: "Banquet Set-Up", colorClass: "border-rose-600 text-rose-700" },
 ];
+
+/** "14 / 17" (guaranteed / expected). Handles a missing number. */
+export function guestsLabel(ev: Pick<BeoEvent, "guests" | "guests_expected">): string {
+  const g = ev.guests;
+  const e = ev.guests_expected;
+  if (g == null && e == null) return "—";
+  if (e == null) return String(g);
+  if (g == null) return `— / ${e}`;
+  return `${g} / ${e}`;
+}
