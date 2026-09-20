@@ -68,7 +68,7 @@ export default function CategoryGrid({
             </span>
             {empty ? (
               <span className="text-[13px] font-medium leading-snug italic text-ink-faint">
-                Not set — tap to add
+                Not set — tap to edit details to add
               </span>
             ) : (
               shown.map((line, i) => (
