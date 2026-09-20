@@ -1,4 +1,5 @@
 import { CATEGORIES, type BeoEvent, type CategoryDef } from "../types";
+import AvIcons from "./AvIcons";
 
 interface Preview {
   lines: string[];
@@ -68,7 +69,7 @@ export default function CategoryGrid({
             </span>
             {empty ? (
               <span className="text-[13px] font-medium leading-snug italic text-ink-faint">
-                Not set — tap edit details to add
+                Not set — tap to add
               </span>
             ) : (
               shown.map((line, i) => (
@@ -82,6 +83,7 @@ export default function CategoryGrid({
                 </span>
               ))
             )}
+            {cat.key === "internet" && <AvIcons details={event.avit?.details} className="mt-1" />}
             {sub && <span className="font-mono text-[11px] text-ink-soft mt-auto">{sub}</span>}
           </button>
         );
