@@ -7,7 +7,7 @@ import PdfViewerModal from "../components/PdfViewerModal";
 import EventForm from "../components/EventForm";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
-import type { BeoEvent, CategoryDef } from "../types";
+import { guestsLabel, type BeoEvent, type CategoryDef } from "../types";
 
 function fmtDateLong(iso: string) {
   if (!iso) return "—";
@@ -90,10 +90,7 @@ export default function EventDetail() {
                 <DetailField label="Date" value={fmtDateLong(event.event_date)} />
                 <DetailField label="Time" value={event.event_time || "—"} />
                 <DetailField label="Room" value={event.room || "—"} />
-                <DetailField label="Guests" value={event.guests?.toString() || "—"} />
-                {event.internet_code && (
-                  <DetailField label="Internet Access Code" value={event.internet_code} mono />
-                )}
+                <DetailField label="Guests (Gtd / Exp)" value={guestsLabel(event)} />
               </dl>
               <div className="flex flex-wrap justify-between gap-2 text-[11px] font-mono text-ink-soft border-t border-neutral-100 pt-3 mt-2">
                 <span>Uploaded {fmtTS(event.uploaded_at)}{event.created_by_name && ` by ${event.created_by_name}`}</span>

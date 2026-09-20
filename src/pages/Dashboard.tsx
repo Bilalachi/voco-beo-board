@@ -5,6 +5,7 @@ import EventForm from "../components/EventForm";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 import type { BeoEvent } from "../types";
+import { compareEvents } from "../lib/sortEvents";
 
 function todayISO() {
   const d = new Date();
@@ -36,11 +37,10 @@ export default function Dashboard() {
     const { data, error } = await supabase
       .from("events")
       .select("*")
-      .gte("event_date", todayISO())
-      .order("event_date", { ascending: true })
-      .order("event_time", { ascending: true });
+      .gte("event_date", todayISO());
     if (error) setError(error.message);
-    else setEvents(data as BeoEvent[]);
+    // sorted here (not in the database) because the time is text like "9:00 AM"
+    else setEvents((data as BeoEvent[]).sort(compareEvents));
   }
 
   useEffect(() => {
