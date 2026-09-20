@@ -18,7 +18,7 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
       return { lines: [ev.banquet?.setup || ""], sub: "" };
     case "avit":
       // details are only shown after tapping the box
-      return { lines: [ev.avit?.details ? "Tap to view details" : ""], sub: "", plain: true };
+      return { lines: [ev.avit?.details ? "Tap to view more details" : ""], sub: "", plain: true };
     case "payment": {
       const d = ev.payment || {};
       return {
@@ -65,11 +65,12 @@ export default function CategoryGrid({
             className={`text-left bg-white border border-neutral-200 border-l-4 ${cat.colorClass.split(" ")[0]} rounded-md p-3.5 min-h-[92px] flex flex-col gap-1 shadow-sm hover:shadow-md transition-shadow`}
           >
             <span className={`font-mono text-[10.5px] font-semibold tracking-wide ${cat.colorClass.split(" ")[1]}`}>
-              {cat.label.toUpperCase()}
-            </span>
+     {cat.label.toUpperCase()}
+   </span>
+   {cat.key === "avit" && <AvIcons details={event.avit?.details} />}
             {empty ? (
               <span className="text-[13px] font-medium leading-snug italic text-ink-faint">
-                Not set — tap to add
+                Not set — Tap edit details to add
               </span>
             ) : (
               shown.map((line, i) => (
@@ -83,7 +84,6 @@ export default function CategoryGrid({
                 </span>
               ))
             )}
-            {cat.key === "internet" && <AvIcons details={event.avit?.details} className="mt-1" />}
             {sub && <span className="font-mono text-[11px] text-ink-soft mt-auto">{sub}</span>}
           </button>
         );

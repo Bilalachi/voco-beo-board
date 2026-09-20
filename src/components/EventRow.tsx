@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { guestsLabel, type BeoEvent } from "../types";
-import AvIcons from "./AvIcons";
+import AvIcons, { avIconsFor } from "./AvIcons";
 
 export default function EventRow({ event }: { event: BeoEvent }) {
   const setup = event.banquet?.setup;
@@ -15,6 +15,7 @@ export default function EventRow({ event }: { event: BeoEvent }) {
       <div className="flex items-baseline justify-between gap-3 font-mono text-[11px] text-ink-soft">
         <span>{event.event_time || "—"}</span>
         <span className="whitespace-nowrap">
+          <span className="text-[9px] uppercase tracking-wide">Gtd / Exp </span>
           <b className="text-[12px] text-ink font-semibold">{guestsLabel(event)}</b>
         </span>
       </div>
@@ -24,7 +25,7 @@ export default function EventRow({ event }: { event: BeoEvent }) {
         <p className="flex-1 min-w-0 font-display font-semibold text-[15px] leading-snug text-ink break-words">
           {event.name || "Untitled event"}
         </p>
-        
+        <span className="text-neutral-300 text-xl leading-none">›</span>
       </div>
 
       {/* bottom: room, set-up and internet code, small */}
@@ -36,7 +37,11 @@ export default function EventRow({ event }: { event: BeoEvent }) {
             Wi-Fi: <span className="font-mono text-ink">{code}</span>
           </span>
         )}
-        <AvIcons details={event.avit?.details} />
+        {avIconsFor(event.avit?.details).length > 0 && (
+     <span className="inline-flex items-center gap-1.5">
+       AV: <AvIcons details={event.avit?.details} />
+     </span>
+   )}
       </div>
     </Link>
   );
