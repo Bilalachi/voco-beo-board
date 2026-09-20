@@ -17,14 +17,16 @@ type FormState = {
   event_date: string;
   event_time: string;
   room: string;
-  guests: string;
+  guests: string; // guaranteed
+  guests_expected: string;
   internet_code: string;
-  am_break_time: string; am_break_location: string; am_break_item: string;
-  pm_break_time: string; pm_break_location: string; pm_break_item: string;
+  am_break_time: string; am_break_location: string; am_break_item: string; am_break_drinks_time: string; am_break_drinks: string;
+  pm_break_time: string; pm_break_location: string; pm_break_item: string; pm_break_drinks_time: string; pm_break_drinks: string;
   lunch_time: string; lunch_location: string; lunch_menu: string;
   dinner_time: string; dinner_location: string; dinner_menu: string;
   avit_details: string;
   banquet_setup: string; banquet_notes: string;
+  payment_method: string; payment_charges: string; payment_notes: string;
 };
 
 function initialState(ev?: BeoEvent): FormState {
@@ -34,13 +36,15 @@ function initialState(ev?: BeoEvent): FormState {
     event_time: ev?.event_time || "",
     room: ev?.room || "",
     guests: ev?.guests?.toString() || "",
+    guests_expected: ev?.guests_expected?.toString() || "",
     internet_code: ev?.internet_code || "",
-    am_break_time: ev?.am_break?.time || "", am_break_location: ev?.am_break?.location || "", am_break_item: ev?.am_break?.item || "",
-    pm_break_time: ev?.pm_break?.time || "", pm_break_location: ev?.pm_break?.location || "", pm_break_item: ev?.pm_break?.item || "",
+    am_break_time: ev?.am_break?.time || "", am_break_location: ev?.am_break?.location || "", am_break_item: ev?.am_break?.item || "", am_break_drinks_time: ev?.am_break?.drinks_time || "", am_break_drinks: ev?.am_break?.drinks || "",
+    pm_break_time: ev?.pm_break?.time || "", pm_break_location: ev?.pm_break?.location || "", pm_break_item: ev?.pm_break?.item || "", pm_break_drinks_time: ev?.pm_break?.drinks_time || "", pm_break_drinks: ev?.pm_break?.drinks || "",
     lunch_time: ev?.lunch?.time || "", lunch_location: ev?.lunch?.location || "", lunch_menu: ev?.lunch?.menu || "",
     dinner_time: ev?.dinner?.time || "", dinner_location: ev?.dinner?.location || "", dinner_menu: ev?.dinner?.menu || "",
     avit_details: ev?.avit?.details || "",
     banquet_setup: ev?.banquet?.setup || "", banquet_notes: ev?.banquet?.notes || "",
+    payment_method: ev?.payment?.method || "", payment_charges: ev?.payment?.charges || "", payment_notes: ev?.payment?.notes || "",
   };
 }
 
@@ -52,13 +56,15 @@ function stateFromDay(d: DayDraft, base: FormState): FormState {
     event_time: d.event_time,
     room: d.room,
     guests: d.guests != null ? String(d.guests) : "",
+    guests_expected: d.guests_expected != null ? String(d.guests_expected) : "",
     internet_code: base.internet_code, // not on the BEO
-    am_break_time: d.am_break.time, am_break_location: d.am_break.location, am_break_item: d.am_break.item,
-    pm_break_time: d.pm_break.time, pm_break_location: d.pm_break.location, pm_break_item: d.pm_break.item,
+    am_break_time: d.am_break.time, am_break_location: d.am_break.location, am_break_item: d.am_break.item, am_break_drinks_time: d.am_break.drinks_time, am_break_drinks: d.am_break.drinks,
+    pm_break_time: d.pm_break.time, pm_break_location: d.pm_break.location, pm_break_item: d.pm_break.item, pm_break_drinks_time: d.pm_break.drinks_time, pm_break_drinks: d.pm_break.drinks,
     lunch_time: d.lunch.time, lunch_location: d.lunch.location, lunch_menu: d.lunch.menu,
     dinner_time: d.dinner.time, dinner_location: d.dinner.location, dinner_menu: d.dinner.menu,
     avit_details: d.avit.details,
     banquet_setup: d.banquet.setup, banquet_notes: d.banquet.notes,
+    payment_method: d.payment.method, payment_charges: d.payment.charges, payment_notes: d.payment.notes,
   };
 }
 
@@ -69,13 +75,15 @@ function makeRecord(form: FormState) {
     event_time: form.event_time.trim(),
     room: form.room.trim(),
     guests: form.guests ? parseInt(form.guests, 10) : null,
+    guests_expected: form.guests_expected ? parseInt(form.guests_expected, 10) : null,
     internet_code: form.internet_code.trim(),
-    am_break: { time: form.am_break_time, location: form.am_break_location, item: form.am_break_item },
-    pm_break: { time: form.pm_break_time, location: form.pm_break_location, item: form.pm_break_item },
+    am_break: { time: form.am_break_time, location: form.am_break_location, item: form.am_break_item, drinks_time: form.am_break_drinks_time, drinks: form.am_break_drinks },
+    pm_break: { time: form.pm_break_time, location: form.pm_break_location, item: form.pm_break_item, drinks_time: form.pm_break_drinks_time, drinks: form.pm_break_drinks },
     lunch: { time: form.lunch_time, location: form.lunch_location, menu: form.lunch_menu },
     dinner: { time: form.dinner_time, location: form.dinner_location, menu: form.dinner_menu },
     avit: { details: form.avit_details },
     banquet: { setup: form.banquet_setup, notes: form.banquet_notes },
+    payment: { method: form.payment_method, charges: form.payment_charges, notes: form.payment_notes },
   };
 }
 
@@ -281,23 +289,28 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
           <TextField label="Date" type="date" value={form.event_date} onChange={(v) => set("event_date", v)} required />
           <TextField label="Time" placeholder="e.g. 6:00 PM – 9:00 PM" value={form.event_time} onChange={(v) => set("event_time", v)} />
           <TextField label="Meeting Room" value={form.room} onChange={(v) => set("room", v)} />
-          <TextField label="Guest Count" type="number" value={form.guests} onChange={(v) => set("guests", v)} />
-          <TextField label="Internet Access Code" value={form.internet_code} onChange={(v) => set("internet_code", v)} placeholder="Wi-Fi code for this event" />
+          <TextField label="Guaranteed Guests" type="number" value={form.guests} onChange={(v) => set("guests", v)} />
+          <TextField label="Expected Guests" type="number" value={form.guests_expected} onChange={(v) => set("guests_expected", v)} />
+          <TextField label="Internet Access Code" full value={form.internet_code} onChange={(v) => set("internet_code", v)} placeholder="Wi-Fi code for this event" />
         </div>
 
         <Fieldset legend="AM Coffee Break">
           <div className="grid grid-cols-2 gap-3">
-            <TextField label="Time" value={form.am_break_time} onChange={(v) => set("am_break_time", v)} />
-            <TextField label="Location" value={form.am_break_location} onChange={(v) => set("am_break_location", v)} />
-            <TextArea label="Items" full value={form.am_break_item} onChange={(v) => set("am_break_item", v)} />
+            <TextField label="Location" full value={form.am_break_location} onChange={(v) => set("am_break_location", v)} />
+            <TextField label="Coffee & Tea Time" value={form.am_break_drinks_time} onChange={(v) => set("am_break_drinks_time", v)} />
+            <TextArea label="Coffee & Tea Items" full value={form.am_break_drinks} onChange={(v) => set("am_break_drinks", v)} />
+            <TextField label="Food Time" value={form.am_break_time} onChange={(v) => set("am_break_time", v)} />
+            <TextArea label="Food Items" full value={form.am_break_item} onChange={(v) => set("am_break_item", v)} />
           </div>
         </Fieldset>
 
         <Fieldset legend="PM Coffee Break">
           <div className="grid grid-cols-2 gap-3">
-            <TextField label="Time" value={form.pm_break_time} onChange={(v) => set("pm_break_time", v)} />
-            <TextField label="Location" value={form.pm_break_location} onChange={(v) => set("pm_break_location", v)} />
-            <TextArea label="Items" full value={form.pm_break_item} onChange={(v) => set("pm_break_item", v)} />
+            <TextField label="Location" full value={form.pm_break_location} onChange={(v) => set("pm_break_location", v)} />
+            <TextField label="Coffee & Tea Time" value={form.pm_break_drinks_time} onChange={(v) => set("pm_break_drinks_time", v)} />
+            <TextArea label="Coffee & Tea Items" full value={form.pm_break_drinks} onChange={(v) => set("pm_break_drinks", v)} />
+            <TextField label="Food Time" value={form.pm_break_time} onChange={(v) => set("pm_break_time", v)} />
+            <TextArea label="Food Items" full value={form.pm_break_item} onChange={(v) => set("pm_break_item", v)} />
           </div>
         </Fieldset>
 
@@ -317,15 +330,23 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
           </div>
         </Fieldset>
 
-        <Fieldset legend="IT / AV Requirements">
-          <TextArea label="Details" full value={form.avit_details} onChange={(v) => set("avit_details", v)} />
-        </Fieldset>
-
-        <Fieldset legend="Banquet Set-Up">
+        <Fieldset legend="Set-Up">
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Set-up Style" full value={form.banquet_setup} onChange={(v) => set("banquet_setup", v)} />
             <TextArea label="Notes" full value={form.banquet_notes} onChange={(v) => set("banquet_notes", v)} />
           </div>
+        </Fieldset>
+
+        <Fieldset legend="Payment & Charges">
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Payment Method" full value={form.payment_method} onChange={(v) => set("payment_method", v)} placeholder="e.g. AR, same day cash" />
+            <TextArea label="Charges" full value={form.payment_charges} onChange={(v) => set("payment_charges", v)} />
+            <TextArea label="Notes (VAT, parking...)" full value={form.payment_notes} onChange={(v) => set("payment_notes", v)} />
+          </div>
+        </Fieldset>
+
+        <Fieldset legend="IT / AV Requirements">
+          <TextArea label="Details" full value={form.avit_details} onChange={(v) => set("avit_details", v)} />
         </Fieldset>
 
         {saveError && (

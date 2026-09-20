@@ -223,9 +223,7 @@ export function parseBeoPages(pages: TextItem[][], pageWidth = 612): BeoDocument
   for (const day of doc.days) {
     const keep: BeverageService[] = [];
     for (const b of day.unmatchedBeverages) {
-      const fn = day.functions.find(
-        (f) => f.room === b.room && b.start && b.start >= f.start && b.start < f.end,
-      );
+      const fn = pickFunction(day.functions, b.room, b.start, b.end);
       if (fn) fn.beverages.push(b);
       else keep.push(b);
     }
@@ -279,6 +277,23 @@ function parseHeader(lines: Line[], doc: BeoDocument) {
 }
 
 /* ----------------------------------------------------------------- day */
+
+/** Exact room + time match first, otherwise the shortest function in that room that contains the start time. */
+function pickFunction(fns: BeoFunction[], room: string | null, start: string | null, end: string | null) {
+  if (!start) return undefined;
+  const sameRoom = fns.filter((f) => f.room === room);
+  return (
+    sameRoom.find((f) => f.start === start && f.end === end) ??
+    sameRoom
+      .filter((f) => start >= f.start && start < f.end)
+      .sort((a, b) => toMin(a.end) - toMin(a.start) - (toMin(b.end) - toMin(b.start)))[0]
+  );
+}
+function toMin(t: string) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
 
 interface Section { name: string; lines: Line[] }
 
@@ -335,9 +350,7 @@ function parseDay(
 
   // attach catering to functions
   for (const b of cateringBlocks) {
-    const fn = day.functions.find(
-      (f) => f.room === b.room && b.start && b.start >= f.start && b.start < f.end,
-    );
+    const fn = pickFunction(day.functions, b.room, b.start, b.end);
     if (fn) fn.catering.push(b);
     else day.unmatchedCatering.push(b);
   }
@@ -503,18 +516,28 @@ function parseRevenueAndMisc(lines: Line[], doc: BeoDocument) {
 
 /* -------------------------------------------------- board-friendly drafts */
 
+export interface BreakDraft {
+  time: string; // food time
+  location: string;
+  item: string; // food items
+  drinks_time: string; // coffee & tea time (often a longer "continuous" window)
+  drinks: string; // coffee & tea items
+}
+
 export interface DayDraft {
   name: string;
   event_date: string;
   event_time: string;
   room: string;
-  guests: number | null;
-  am_break: { time: string; location: string; item: string };
-  pm_break: { time: string; location: string; item: string };
+  guests: number | null; // guaranteed
+  guests_expected: number | null;
+  am_break: BreakDraft;
+  pm_break: BreakDraft;
   lunch: { time: string; location: string; menu: string };
   dinner: { time: string; location: string; menu: string };
   avit: { details: string };
   banquet: { setup: string; notes: string };
+  payment: { charges: string; method: string; notes: string };
 }
 
 function fmt12(t: string): string {
@@ -524,19 +547,41 @@ function fmt12(t: string): string {
   return `${h % 12 === 0 ? 12 : h % 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`;
 }
 const range12 = (f: BeoFunction) => `${fmt12(f.start)} \u2013 ${fmt12(f.end)}`;
-const minutes = (t: string) => {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-};
-// prices never go on the board: it is publicly viewable
+const dur = (f: BeoFunction) => toMin(f.end) - toMin(f.start);
 const hasPrice = (t: string) => /(USD|\$)\s*\d|\d\s*(USD|\$)/i.test(t);
 
-function classify(f: BeoFunction): 'am' | 'pm' | 'lunch' | 'dinner' | 'other' {
+type Kind = 'am' | 'pm' | 'continuous' | 'lunch' | 'dinner' | 'other';
+
+function classify(f: BeoFunction): Kind {
   const n = f.function.toLowerCase();
   if (/lunch/.test(n)) return 'lunch';
   if (/dinner|gala/.test(n)) return 'dinner';
-  if (/\bbreak\b|coffee|refreshment/.test(n)) return f.start < '12:00' ? 'am' : 'pm';
+  if (/continuous/.test(n)) return 'continuous';
+  if (/\bbreak\b|coffee|refreshment/.test(n)) {
+    if (/morning|\bam\b/.test(n)) return 'am';
+    if (/afternoon|\bpm\b/.test(n)) return 'pm';
+    return f.start < '12:00' ? 'am' : 'pm';
+  }
   return 'other';
+}
+
+const DRINK = /coffee|nescaf|\btea\b|milk|juice|water|espresso|cappuccino|latte|soft drink|soda/i;
+const isDrinkGroup = (g: string[]) => g.length > 0 && g.filter((i) => DRINK.test(i)).length / g.length >= 0.6;
+
+/** Splits a coffee break into its coffee & tea part and its food part. */
+function splitBreak(f: BeoFunction): { drinks: string; food: string } {
+  const groups = f.catering.flatMap((b) => b.menu);
+  let drinks: string[][] = [];
+  let food: string[][] = groups;
+  if (groups.length >= 2 && isDrinkGroup(groups[0])) {
+    drinks = [groups[0]];
+    food = groups.slice(1);
+  } else if (groups.length === 1 && isDrinkGroup(groups[0])) {
+    drinks = groups;
+    food = [];
+  }
+  const text = (gs: string[][]) => gs.map((g) => g.join('\n')).join('\n');
+  return { drinks: text(drinks), food: text(food) };
 }
 
 function menuText(f: BeoFunction): string {
@@ -553,6 +598,28 @@ function menuText(f: BeoFunction): string {
   return parts.map((p) => `${p.name}:\n${p.body}`).join('\n\n');
 }
 
+/** Charges, payment method and VAT/parking notes, from the billing section and the notes. */
+function extractPayment(doc: BeoDocument) {
+  const all = [...doc.billing, ...doc.notes.flatMap((g) => g.lines)];
+  const charges: string[] = [];
+  const notes: string[] = [];
+  let method = '';
+  for (const raw of doc.billing) {
+    const m = raw.match(/^(.*?)\s*\bPayment\b:?\s*(.*)$/i);
+    if (m) {
+      if (m[1].trim()) notes.push(m[1].trim());
+      if (!method) method = m[2].trim();
+    } else if (!/^-?\s*(Charges|Food|Bev(erage)?)\s*:/i.test(raw)) notes.push(raw.trim());
+  }
+  for (const raw of all) {
+    if (/^-?\s*(Charges|Food|Bev(erage)?)\s*:.*(USD|\$)/i.test(raw)) {
+      const line = raw.replace(/^-\s*/, '').trim();
+      if (!charges.includes(line)) charges.push(line);
+    }
+  }
+  return { charges: charges.join('\n'), method, notes: notes.filter(Boolean).join('\n') };
+}
+
 /** One draft per day, shaped like the board's `events` table / EventForm. */
 export function beoToDrafts(doc: BeoDocument): DayDraft[] {
   const avLines: string[] = [];
@@ -563,32 +630,37 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
     else if (g.dept && !/bqt|banquet|catering/i.test(g.dept)) bqLines.push(...lines.map((l, i) => (i === 0 ? `[${g.dept}] ${l}` : l)));
     else bqLines.push(...lines);
   }
+  const payment = extractPayment(doc);
+  const emptyBreak = (): BreakDraft => ({ time: '', location: '', item: '', drinks_time: '', drinks: '' });
 
   return doc.days
     .filter((d) => d.functions.length)
     .map((day) => {
       const fns = day.functions;
       const others = fns.filter((f) => classify(f) === 'other');
-      const pool = others.length ? others : fns;
-      const main = [...pool].sort((a, b) => minutes(b.end) - minutes(b.start) - (minutes(a.end) - minutes(a.start)))[0];
+      const pool = others.length ? others : fns.filter((f) => classify(f) !== 'continuous');
+      const main = [...(pool.length ? pool : fns)].sort((a, b) => dur(b) - dur(a))[0];
+      const continuous = fns.find((f) => classify(f) === 'continuous');
 
       const draft: DayDraft = {
         name: doc.account || doc.bookingName,
         event_date: day.date,
         event_time: range12(main),
         room: main.room,
-        guests: main.guaranteed ?? main.expected,
-        am_break: { time: '', location: '', item: '' },
-        pm_break: { time: '', location: '', item: '' },
+        guests: main.guaranteed,
+        guests_expected: main.expected,
+        am_break: emptyBreak(),
+        pm_break: emptyBreak(),
         lunch: { time: '', location: '', menu: '' },
         dinner: { time: '', location: '', menu: '' },
         avit: { details: avLines.join('\n') },
         banquet: { setup: main.setup, notes: '' },
+        payment,
       };
       const also: string[] = [];
       const taken = new Set<string>();
       for (const f of fns) {
-        if (f === main) continue;
+        if (f === main || f === continuous) continue;
         const kind = classify(f);
         if (kind === 'other' || taken.has(kind)) {
           also.push(`Also: ${range12(f)} ${f.room} \u2013 ${f.function}`);
@@ -596,10 +668,22 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
         }
         taken.add(kind);
         const base = { time: range12(f), location: f.room };
-        if (kind === 'am') draft.am_break = { ...base, item: menuText(f) };
-        else if (kind === 'pm') draft.pm_break = { ...base, item: menuText(f) };
-        else if (kind === 'lunch') draft.lunch = { ...base, menu: menuText(f) };
+        if (kind === 'am' || kind === 'pm') {
+          const { drinks, food } = splitBreak(f);
+          const b: BreakDraft = {
+            ...base,
+            item: food,
+            drinks,
+            drinks_time: drinks || continuous ? range12(continuous ?? f) : '',
+          };
+          if (kind === 'am') draft.am_break = b;
+          else draft.pm_break = b;
+        } else if (kind === 'lunch') draft.lunch = { ...base, menu: menuText(f) };
         else draft.dinner = { ...base, menu: menuText(f) };
+      }
+      // continuous coffee with no break of its own: still show it on the AM box
+      if (continuous && !taken.has('am') && !taken.has('pm')) {
+        draft.am_break = { ...emptyBreak(), location: continuous.room, drinks_time: range12(continuous) };
       }
       draft.banquet.notes = [...bqLines, ...also].join('\n');
       return draft;
