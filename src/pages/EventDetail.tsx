@@ -72,7 +72,7 @@ export default function EventDetail() {
       <main className="max-w-4xl mx-auto px-4 py-6">
         <button
           onClick={() => navigate("/")}
-          className="text-sm text-petrol-500 font-medium mb-4 hover:underline"
+          className="text-sm text-[#1B2A38] font-medium mb-4 hover:underline"
         >
           ← Board
         </button>
@@ -98,13 +98,13 @@ export default function EventDetail() {
               </div>
               <div className="flex flex-wrap gap-2 mt-4">
                 {pdfUrl && (
-                  <button onClick={() => setShowPdf(true)} className="text-sm border border-neutral-300 rounded-md px-3 py-1.5 hover:bg-neutral-50">
+                  <button onClick={() => setShowPdf(true)} className="text-sm border border-neutral-300 rounded-md px-3 py-1.5 hover:bg-petrol-50">
                     📄 View original BEO
                   </button>
                 )}
                 {user && (
                   <>
-                    <button onClick={() => setShowEdit(true)} className="text-sm border border-neutral-300 rounded-md px-3 py-1.5 hover:bg-neutral-50">
+                    <button onClick={() => setShowEdit(true)} className="text-sm border border-neutral-300 rounded-md px-3 py-1.5 hover:bg-petrol-50 disabled:opacity-50">
                       Edit details
                     </button>
                     <button

@@ -6,8 +6,8 @@ export default function Header({ onNewBeo }: { onNewBeo?: () => void }) {
   const navigate = useNavigate();
 
   return (
-    <header className="bg-petrol-500 text-white sticky top-0 z-30 shadow-md">
-      <div className="honeycomb-bg">
+    <header className="bg-[#1B2A38] text-white sticky top-0 z-30 shadow-md">
+      <div>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <Link to="/" className="flex flex-col leading-tight">
             <span className="font-display font-semibold text-lg tracking-tight">
@@ -45,7 +45,7 @@ export default function Header({ onNewBeo }: { onNewBeo?: () => void }) {
             ) : (
               <button
                 onClick={() => navigate("/login")}
-                className="border border-white/30 hover:bg-white/10 text-white text-sm px-3 py-2 rounded-md transition-colors"
+                className="bg-honey-500 border border-white/30 hover:bg-honey-600 text-white text-sm px-3 py-2 rounded-md transition-colors"
               >
                 Staff Login
               </button>

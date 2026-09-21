@@ -97,10 +97,10 @@ export default function Dashboard() {
         {groups.map((g) => (
           <div key={g.date}>
             <div className="flex items-center gap-3 mt-7 mb-2.5 first:mt-1">
-              <span className="bg-petrol-500 text-honey-500 font-mono text-xs font-semibold tracking-wide px-2.5 py-1.5 rounded">
+              <span className="bg-[#1B2A38] text-honey-500 font-mono text-xs font-semibold tracking-wide px-2.5 py-1.5 rounded">
                 {g.date === today ? `TODAY — ${fmtDateShort(g.date)}` : fmtDateLong(g.date)}
               </span>
-              <span className="flex-1 h-px bg-neutral-200" />
+              <span className="flex-1 h-px bg-[#1B2A38]" />
             </div>
             {g.items.map((ev) => (
               <EventRow key={ev.id} event={ev} />
