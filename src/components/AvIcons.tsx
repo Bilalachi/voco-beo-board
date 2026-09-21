@@ -21,6 +21,19 @@ const ICONS: AvIconDef[] = [
     icon: <img src={`${import.meta.env.BASE_URL}icons/teams.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
   },
   {
+    key: "Macbook",
+    label: "Apple Macbook",
+    test: /\apple\b|Macbook/i,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/apple.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+  },
+  {
+    key: "clicker pointer",
+    label: "clicker pointer / presentation remote",
+    test: /\clicker\b|pointer/i,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/clicker.jpg`} width={16} height={16} alt="" style={{ display: "block" }} />,
+  },
+  
+  {
     key: "mic",
     label: "Microphone",
     test: /\bmics?\b|microphones?|handheld/i,
@@ -49,6 +62,14 @@ const ICONS: AvIconDef[] = [
     countable: true,
     icon: <img src={`${import.meta.env.BASE_URL}icons/podium.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
   },
+  {
+    key: "extension",
+    label: "extension cord / power strip",
+    test: /extension|power strip/i,
+    countable: true,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/extension.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+  },
+  
 ];
 
 const NUMBER_WORDS: Record<string, number> = {
