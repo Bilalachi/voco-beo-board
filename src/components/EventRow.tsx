@@ -43,7 +43,7 @@ export default function EventRow({ event }: { event: BeoEvent }) {
 )}
         {avIconsFor(event.avit?.details).length > 0 && (
      <span className="inline-flex items-center gap-1.5">
-       AV: <AvIcons details={event.avit?.details} />
+       IT/AV: <AvIcons details={event.avit?.details} />
      </span>
    )}
       </div>

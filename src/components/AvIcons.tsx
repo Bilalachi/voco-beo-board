@@ -15,6 +15,12 @@ const MAX_ICONS = 10; // safety limit so a typo like "200 mics" doesn't fill the
 // Add `countable: true` if you want one icon per unit (like the microphones).
 const ICONS: AvIconDef[] = [
   
+    {
+    key: "internet",
+    label: "Internet Access",
+    test: /\binternet\b/i,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/internet.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+  },
   {
     key: "projector",
     label: "projector",
