@@ -71,12 +71,12 @@ export interface CategoryDef {
 // The order here is the order of the boxes on the event page (two per row).
 export const CATEGORIES: CategoryDef[] = [
   { key: "internet", label: "Internet Code", colorClass: "border-honey-600 text-[#1B2A38]" },
-  { key: "banquet", label: "Set-Up", colorClass: "border-honey-600 text-[#1B2A38]" },
-  { key: "am_break", label: "AM Coffee Break", colorClass: "border-honey-600 text-[#1B2A38]" },
+  { key: "banquet", label: "Set-Up", colorClass: "border-[#182B3A] text-[#1B2A38]" },
+  { key: "am_break", label: "AM Coffee Break", colorClass: "border-[#182B3A] text-[#1B2A38]" },
   { key: "pm_break", label: "PM Coffee Break", colorClass: "border-honey-600 text-[#1B2A38]" },
   { key: "lunch", label: "Lunch", colorClass: "border-honey-600 text-[#1B2A38]" },
-  { key: "dinner", label: "Dinner", colorClass: "border-honey-600 text-[#1B2A38]" },
-  { key: "payment", label: "Payment & Charges", colorClass: "border-honey-600 text-[#1B2A38]" },
+  { key: "dinner", label: "Dinner", colorClass: "border-[#182B3A] text-[#1B2A38]" },
+  { key: "payment", label: "Payment & Charges", colorClass: "border-[#182B3A] text-[#1B2A38]" },
   { key: "avit", label: "IT / AV", colorClass: "border-honey-600 text-[#1B2A38]" },
 ];
 
