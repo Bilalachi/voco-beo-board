@@ -42,7 +42,7 @@ const ICONS: AvIconDef[] = [
   {
     key: "Macbook",
     label: "Apple Macbook",
-    test: /\apple\b|Macbook/i,
+    test: /\bapple\b|Macbook/i,
     icon: <img src={`${import.meta.env.BASE_URL}icons/apple.png`} width={20} height={20} alt="" style={{ display: "block" }} />,
   },
   {
