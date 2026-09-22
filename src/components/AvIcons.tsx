@@ -14,60 +14,78 @@ const MAX_ICONS = 10; // safety limit so a typo like "200 mics" doesn't fill the
 // To add another icon: copy one of these entries, change the words in `test`, and draw or paste an icon.
 // Add `countable: true` if you want one icon per unit (like the microphones).
 const ICONS: AvIconDef[] = [
+  
   {
-    key: "teams",
-    label: "Microsoft Teams",
-    test: /\bteams\b|hybrid/i,
-    icon: <img src={`${import.meta.env.BASE_URL}icons/teams.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+    key: "projector",
+    label: "projector",
+    test: /\bprojector\b/i,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/projector.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
+  },
+  {
+    key: "projector screen",
+    label: "Screen",
+    test: /\bscreen\b/i,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/screen.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
+  },
+  {
+    key: "screen",
+    label: "Interactive Screen / Smartboard",
+    test: /\bInteractive\b/i,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/smart-tv.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
   {
     key: "Macbook",
     label: "Apple Macbook",
     test: /\apple\b|Macbook/i,
-    icon: <img src={`${import.meta.env.BASE_URL}icons/apple.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/apple.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
   {
     key: "clicker pointer",
-    label: "clicker pointer / presentation remote",
-    test: /\clicker\b|pointer/i,
-    icon: <img src={`${import.meta.env.BASE_URL}icons/clicker.jpg`} width={16} height={16} alt="" style={{ display: "block" }} />,
+    label: "Clicker / Pointer / presentation remote",
+    test: /\bclicker\b|pointer/i,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/clicker.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
-  
   {
     key: "mic",
-    label: "Microphone",
+    label: "Handheld Microphone",
     test: /\bmics?\b|microphones?|handheld/i,
     countable: true,
     fallback: true,
-    icon: <img src={`${import.meta.env.BASE_URL}icons/handheld.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/handheld.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
   {
     key: "headset",
-    label: "headset / neck mic",
+    label: "Headset / Neck Microphone",
     test: /\bhead?\b|headset?|neck/i,
     countable: true,
-    icon: <img src={`${import.meta.env.BASE_URL}icons/headset.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/headset.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
    {
     key: "clip",
-    label: "clip microphone / lavalier",
+    label: "Clip microphone / lavalier",
     test: /\bclip?\b|lavalier?/i,
     countable: true,
-    icon: <img src={`${import.meta.env.BASE_URL}icons/clip.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/clip.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
   {
     key: "podium",
-    label: "podium",
+    label: "Microphone on Podium",
     test: /podium|lectern/i,
     countable: true,
-    icon: <img src={`${import.meta.env.BASE_URL}icons/podium.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/podium.png`} width={20} height={20} alt="" style={{ display: "block" }} />,
   },
   {
     key: "extension",
-    label: "extension cord / power strip",
+    label: "Extension Cord / Power Strip",
     test: /extension|power strip/i,
     countable: true,
-    icon: <img src={`${import.meta.env.BASE_URL}icons/extension.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/extension.png`} width={20} height={20} alt="" style={{ display: "block" }} />,
+  },
+  {
+    key: "teams",
+    label: "Microsoft Teams",
+    test: /\bteams\b|hybrid/i,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/teams.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
   
 ];

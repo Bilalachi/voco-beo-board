@@ -31,12 +31,16 @@ export default function EventRow({ event }: { event: BeoEvent }) {
       {/* bottom: room, set-up and internet code, small */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[11px] text-ink-soft">
         <span className="font-medium text-ink">{event.room || "No room set"}</span>
-        {setup && <span>Set-up: {setup}</span>}
-        {code && (
-          <span>
-            Wi-Fi: <span className="font-mono text-ink">{code}</span>
-          </span>
-        )}
+{setup && (
+  <span>
+    Set-up: <b className="font-semibold text-ink">{setup}</b>
+  </span>
+)}
+{code && (
+  <span>
+    Wi-Fi: <b className="font-mono font-semibold text-ink">{code}</b>
+  </span>
+)}
         {avIconsFor(event.avit?.details).length > 0 && (
      <span className="inline-flex items-center gap-1.5">
        AV: <AvIcons details={event.avit?.details} />
