@@ -71,14 +71,14 @@ export interface CategoryDef {
 
 // The order here is the order of the boxes on the event page (two per row).
 export const CATEGORIES: CategoryDef[] = [
-  { key: "internet", label: "Internet Code", colorClass: "border-sky-600 text-sky-700" },
-  { key: "banquet", label: "Set-Up", colorClass: "border-rose-600 text-rose-700" },
-  { key: "am_break", label: "AM Coffee Break", colorClass: "border-amber-500 text-amber-700" },
-  { key: "pm_break", label: "PM Coffee Break", colorClass: "border-lime-600 text-lime-700" },
-  { key: "lunch", label: "Lunch", colorClass: "border-orange-600 text-orange-700" },
-  { key: "dinner", label: "Dinner", colorClass: "border-purple-600 text-purple-700" },
-  { key: "payment", label: "Payment & Charges", colorClass: "border-emerald-600 text-emerald-700" },
-  { key: "avit", label: "IT / AV", colorClass: "border-petrol-500 text-petrol-600" },
+  { key: "internet", label: "Internet Code", colorClass: "border-honey-500 text-[#1B2A38]" },
+  { key: "banquet", label: "Set-Up", colorClass: "border-honey-500 text-[#1B2A38]" },
+  { key: "am_break", label: "AM Coffee Break", colorClass: "border-honey-500 text-[#1B2A38]" },
+  { key: "pm_break", label: "PM Coffee Break", colorClass: "border-honey-500 text-[#1B2A38]" },
+  { key: "lunch", label: "Lunch", colorClass: "border-honey-500 text-[#1B2A38]" },
+  { key: "dinner", label: "Dinner", colorClass: "border-honey-500 text-[#1B2A38]" },
+  { key: "payment", label: "Payment & Charges", colorClass: "border-honey-500 text-[#1B2A38]" },
+  { key: "avit", label: "IT / AV", colorClass: "border-honey-500 text-[#1B2A38]" },
 ];
 
 /** "14 / 17" (guaranteed / expected). Handles a missing number. */

@@ -62,7 +62,7 @@ export default function CategoryGrid({
           <button
             key={cat.key}
             onClick={() => onSelect(cat.key)}
-            className={`text-left bg-white border border-neutral-200 border-l-4 ${cat.colorClass.split(" ")[0]} rounded-md p-3.5 min-h-[92px] flex flex-col gap-1 shadow-sm hover:shadow-md transition-shadow`}
+            className={`text-left bg-black border border-neutral-200 border-l-4 ${cat.colorClass.split(" ")[0]} rounded-md p-3.5 min-h-[92px] flex flex-col gap-1 shadow-sm hover:shadow-md transition-shadow`}
           >
             <span className={`font-mono text-[10.5px] font-semibold tracking-wide ${cat.colorClass.split(" ")[1]}`}>
      {cat.label.toUpperCase()}

@@ -30,7 +30,7 @@ const ICONS: AvIconDef[] = [
   {
     key: "projector screen",
     label: "Screen",
-    test: /\bscreen\b/i,
+    test: /\bprojector and screen\b/i,
     icon: <img src={`${import.meta.env.BASE_URL}icons/screen.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
   {
