@@ -294,7 +294,6 @@ function toMin(t: string) {
   return h * 60 + m;
 }
 
-
 interface Section { name: string; lines: Line[] }
 
 function parseDay(
@@ -308,9 +307,6 @@ function parseDay(
     date, dayName, functions: [], unmatchedCatering: [], unmatchedBeverages: [],
   };
 
-  // split into sections. A page that starts without a title is "untitled":
-  // it becomes the notes area if it holds a Notes label, otherwise it is a
-  // continuation of the section before it.
   const sections: Section[] = [{ name: 'schedule', lines: [] }];
   let lastPage = lines[0]?.page;
   const isNotesLabel = (l: Line) =>
@@ -334,7 +330,6 @@ function parseDay(
     }
     cur.lines.push(l);
   }
-  // untitled pages with no notes label continue the previous section
   for (let i = 1; i < sections.length; i++) {
     if (sections[i].name === 'untitled') sections[i].name = sections[i - 1].name;
   }
@@ -348,7 +343,6 @@ function parseDay(
   for (const l of linesOf('billing instruction')) doc.billing.push(l.text);
   const schedule = sections[0];
 
-  // attach catering to functions
   for (const b of cateringBlocks) {
     const fn = pickFunction(day.functions, b.room, b.start, b.end);
     if (fn) fn.catering.push(b);
@@ -470,7 +464,6 @@ function parseBeverages(lines: Line[]): BeverageService[] {
 
 function resolveBeverageRoom(b: BeverageService, rooms: Set<string>) {
   if (b.room) return;
-  // the room name is glued to the front of the service name ("Atrio Open Soft Drinks ...")
   const room = [...rooms].sort((a, c) => c.length - a.length).find((r) => b.name.startsWith(r + ' '));
   if (room) { b.room = room; b.name = b.name.slice(room.length).trim(); }
 }
@@ -520,7 +513,7 @@ export interface BreakDraft {
   time: string; // food time
   location: string;
   item: string; // food items
-  drinks_time: string; // coffee & tea time (often a longer "continuous" window)
+  drinks_time: string; // coffee & tea time
   drinks: string; // coffee & tea items
 }
 
@@ -529,7 +522,7 @@ export interface DayDraft {
   event_date: string;
   event_time: string;
   room: string;
-  guests: number | null; // guaranteed
+  guests: number | null;
   guests_expected: number | null;
   am_break: BreakDraft;
   pm_break: BreakDraft;
@@ -568,7 +561,6 @@ function classify(f: BeoFunction): Kind {
 const DRINK = /coffee|nescaf|\btea\b|milk|juice|water|espresso|cappuccino|latte|soft drink|soda/i;
 const isDrinkGroup = (g: string[]) => g.length > 0 && g.filter((i) => DRINK.test(i)).length / g.length >= 0.6;
 
-/** Splits a coffee break into its coffee & tea part and its food part. */
 function splitBreak(f: BeoFunction): { drinks: string; food: string } {
   const groups = f.catering.flatMap((b) => b.menu);
   let drinks: string[][] = [];
@@ -598,7 +590,6 @@ function menuText(f: BeoFunction): string {
   return parts.map((p) => `${p.name}:\n${p.body}`).join('\n\n');
 }
 
-/** Charges, payment method and VAT/parking notes, from the billing section and the notes. */
 function extractPayment(doc: BeoDocument) {
   const all = [...doc.billing, ...doc.notes.flatMap((g) => g.lines)];
   const charges: string[] = [];
@@ -620,7 +611,7 @@ function extractPayment(doc: BeoDocument) {
   return { charges: charges.join('\n'), method, notes: notes.filter(Boolean).join('\n') };
 }
 
-/** One draft per day, shaped like the board's `events` table / EventForm. */
+/** Converts BEO days into drafts, emitting a separate draft for each primary meeting room booking. */
 export function beoToDrafts(doc: BeoDocument): DayDraft[] {
   const avLines: string[] = [];
   const bqLines: string[] = [];
@@ -633,41 +624,56 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
   const payment = extractPayment(doc);
   const emptyBreak = (): BreakDraft => ({ time: '', location: '', item: '', drinks_time: '', drinks: '' });
 
-  return doc.days
-    .filter((d) => d.functions.length)
-    .map((day) => {
-      const fns = day.functions;
-      const others = fns.filter((f) => classify(f) === 'other');
-      const pool = others.length ? others : fns.filter((f) => classify(f) !== 'continuous');
-      const main = [...(pool.length ? pool : fns)].sort((a, b) => dur(b) - dur(a))[0];
-      const continuous = fns.find((f) => classify(f) === 'continuous');
+  const drafts: DayDraft[] = [];
 
+  for (const day of doc.days) {
+    if (!day.functions.length) continue;
+
+    const fns = day.functions;
+    const classified = fns.map((f) => ({ fn: f, kind: classify(f) }));
+
+    // Extract all meeting/event functions ('other' kind)
+    const primaryFns = classified
+      .filter((c) => c.kind === 'other')
+      .map((c) => c.fn);
+
+    // If no explicit meeting functions are classified, fallback to all functions
+    const mainEvents = primaryFns.length > 0 ? primaryFns : fns;
+    const continuous = fns.find((f) => classify(f) === 'continuous');
+
+    // Create a separate DayDraft for each primary meeting room booking on this day
+    for (const mainFn of mainEvents) {
       const draft: DayDraft = {
         name: doc.account || doc.bookingName,
         event_date: day.date,
-        event_time: range12(main),
-        room: main.room,
-        guests: main.guaranteed,
-        guests_expected: main.expected,
+        event_time: range12(mainFn),
+        room: mainFn.room,
+        guests: mainFn.guaranteed,
+        guests_expected: mainFn.expected,
         am_break: emptyBreak(),
         pm_break: emptyBreak(),
         lunch: { time: '', location: '', menu: '' },
         dinner: { time: '', location: '', menu: '' },
         avit: { details: avLines.join('\n') },
-        banquet: { setup: main.setup, notes: '' },
+        banquet: { setup: mainFn.setup, notes: '' },
         payment,
       };
+
       const also: string[] = [];
       const taken = new Set<string>();
-      for (const f of fns) {
-        if (f === main || f === continuous) continue;
-        const kind = classify(f);
+
+      // Attach shared breaks/lunches/dinners to this draft
+      for (const { fn: f, kind } of classified) {
+        if (mainEvents.includes(f) || f === continuous) continue;
+
         if (kind === 'other' || taken.has(kind)) {
           also.push(`Also: ${range12(f)} ${f.room} \u2013 ${f.function}`);
           continue;
         }
+
         taken.add(kind);
         const base = { time: range12(f), location: f.room };
+
         if (kind === 'am' || kind === 'pm') {
           const { drinks, food } = splitBreak(f);
           const b: BreakDraft = {
@@ -678,14 +684,21 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
           };
           if (kind === 'am') draft.am_break = b;
           else draft.pm_break = b;
-        } else if (kind === 'lunch') draft.lunch = { ...base, menu: menuText(f) };
-        else draft.dinner = { ...base, menu: menuText(f) };
+        } else if (kind === 'lunch') {
+          draft.lunch = { ...base, menu: menuText(f) };
+        } else if (kind === 'dinner') {
+          draft.dinner = { ...base, menu: menuText(f) };
+        }
       }
-      // continuous coffee with no break of its own: still show it on the AM box
+
       if (continuous && !taken.has('am') && !taken.has('pm')) {
         draft.am_break = { ...emptyBreak(), location: continuous.room, drinks_time: range12(continuous) };
       }
+
       draft.banquet.notes = [...bqLines, ...also].join('\n');
-      return draft;
-    });
+      drafts.push(draft);
+    }
+  }
+
+  return drafts;
 }
