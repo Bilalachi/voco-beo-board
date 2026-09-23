@@ -3,19 +3,16 @@ import type { ReactNode } from "react";
 interface AvIconDef {
   key: string;
   label: string;
-  test: RegExp; // matched against the IT / AV requirement text
+  test: RegExp;
   icon: ReactNode;
-  countable?: boolean; // true = show one icon per unit ("3 mics" -> 3 icons)
-  fallback?: boolean; // countable icons only: used when no more specific icon matches the same phrase
+  countable?: boolean;
+  fallback?: boolean;
 }
 
-const MAX_ICONS = 10; // safety limit so a typo like "200 mics" doesn't fill the screen
+const MAX_ICONS = 10;
 
-// To add another icon: copy one of these entries, change the words in `test`, and draw or paste an icon.
-// Add `countable: true` if you want one icon per unit (like the microphones).
 const ICONS: AvIconDef[] = [
-  
-    {
+  {
     key: "internet",
     label: "Internet Access",
     test: /\binternet\b/i,
@@ -66,7 +63,7 @@ const ICONS: AvIconDef[] = [
     countable: true,
     icon: <img src={`${import.meta.env.BASE_URL}icons/headset.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
-   {
+  {
     key: "clip",
     label: "Clip microphone / lavalier",
     test: /\bclip?\b|lavalier?/i,
@@ -93,7 +90,6 @@ const ICONS: AvIconDef[] = [
     test: /\bteams\b|hybrid/i,
     icon: <img src={`${import.meta.env.BASE_URL}icons/teams.png`} width={18} height={18} alt="" style={{ display: "block" }} />,
   },
-  
 ];
 
 const NUMBER_WORDS: Record<string, number> = {
@@ -102,13 +98,11 @@ const NUMBER_WORDS: Record<string, number> = {
 };
 const WORD_RE = new RegExp(`\\b(${Object.keys(NUMBER_WORDS).join("|")})\\b`, "i");
 
-/** The quantity written in one phrase: "3 mics", "mics x3", "two headsets", "headset (2)". No number = 1. */
 function numberIn(phrase: string): number {
   for (const m of phrase.matchAll(/\d+/g)) {
     const i = m.index ?? 0;
     const prev = phrase[i - 1] ?? "";
     const after = phrase.slice(i + m[0].length);
-    // skip clock times and decimals like "10:30", "10.5", "9 am"
     if (prev === ":" || prev === "." || /^[:.]\d/.test(after) || /^\s?(am|pm)\b/i.test(after)) continue;
     return parseInt(m[0], 10);
   }
@@ -116,11 +110,6 @@ function numberIn(phrase: string): number {
   return w ? NUMBER_WORDS[w[1].toLowerCase()] : 1;
 }
 
-/**
- * Splits the text into phrases (by line, comma, "and", "+", "&"), gives each phrase to the
- * first countable icon whose words match it, and adds up the numbers per icon.
- * Specific icons (headset, clip, podium) are checked before the general microphone.
- */
 function countUnits(text: string): Record<string, number> {
   const countable = ICONS.filter((i) => i.countable);
   const order = [...countable.filter((i) => !i.fallback), ...countable.filter((i) => i.fallback)];
@@ -132,10 +121,16 @@ function countUnits(text: string): Record<string, number> {
   return counts;
 }
 
-export function avIconsFor(details?: string) {
+export function avIconsFor(details?: string, hideProjectors = false) {
   const text = details || "";
   const counts = countUnits(text);
+  
   return ICONS.flatMap((def) => {
+    // Skip projector and projector screen icons if hideProjectors is true
+    if (hideProjectors && (def.key === "projector" || def.key === "projector screen")) {
+      return [];
+    }
+
     if (def.countable) {
       const n = counts[def.key] || 0;
       return n > 0 ? [{ def, n: Math.min(n, MAX_ICONS) }] : [];
@@ -144,9 +139,16 @@ export function avIconsFor(details?: string) {
   });
 }
 
-/** Small icons for equipment mentioned in the IT / AV requirements. Renders nothing if none match. */
-export default function AvIcons({ details, className = "" }: { details?: string; className?: string }) {
-  const found = avIconsFor(details);
+export default function AvIcons({
+  details,
+  hideProjectors = false,
+  className = "",
+}: {
+  details?: string;
+  hideProjectors?: boolean;
+  className?: string;
+}) {
+  const found = avIconsFor(details, hideProjectors);
   if (!found.length) return null;
   return (
     <span className={`inline-flex flex-wrap items-center gap-1.5 text-ink-soft ${className}`}>
