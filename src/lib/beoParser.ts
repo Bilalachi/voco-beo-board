@@ -518,6 +518,7 @@ export interface BreakDraft {
 }
 
 export interface DayDraft {
+  contract_number: string;
   name: string;
   event_date: string;
   event_time: string;
@@ -644,6 +645,7 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
     // Create a separate DayDraft for each primary meeting room booking on this day
     for (const mainFn of mainEvents) {
       const draft: DayDraft = {
+        contract_number: doc.contractNumber,
         name: doc.account || doc.bookingName,
         event_date: day.date,
         event_time: range12(mainFn),

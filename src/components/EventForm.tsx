@@ -57,7 +57,7 @@ function stateFromDay(d: DayDraft, base: FormState): FormState {
     room: d.room,
     guests: d.guests != null ? String(d.guests) : "",
     guests_expected: d.guests_expected != null ? String(d.guests_expected) : "",
-    internet_code: base.internet_code, // not on the BEO
+    internet_code: base.internet_code,
     am_break_time: d.am_break.time, am_break_location: d.am_break.location, am_break_item: d.am_break.item, am_break_drinks_time: d.am_break.drinks_time, am_break_drinks: d.am_break.drinks,
     pm_break_time: d.pm_break.time, pm_break_location: d.pm_break.location, pm_break_item: d.pm_break.item, pm_break_drinks_time: d.pm_break.drinks_time, pm_break_drinks: d.pm_break.drinks,
     lunch_time: d.lunch.time, lunch_location: d.lunch.location, lunch_menu: d.lunch.menu,
@@ -100,7 +100,6 @@ function dayLabel(iso: string): string {
 export default function EventForm({ existing, onClose, onSaved }: Props) {
   const { user, profile } = useAuth();
   const isEdit = !!existing;
-  // One draft per day. A BEO PDF that covers several days creates several drafts.
   const [drafts, setDrafts] = useState<FormState[]>([initialState(existing)]);
   const [active, setActive] = useState(0);
   const form = drafts[active];
@@ -110,8 +109,41 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfName, setPdfName] = useState(existing?.pdf_name || "");
 
+  // Tracks existing event IDs matched from Supabase during PDF parsing
+  const [existingIds, setExistingIds] = useState<string[]>([]);
+  const [isUpdateConfirmed, setIsUpdateConfirmed] = useState(false);
+
   function set<K extends keyof FormState>(key: K, val: string) {
     setDrafts((ds) => ds.map((d, i) => (i === active ? { ...d, [key]: val } : d)));
+  }
+
+  async function checkExistingEvents(parsedDrafts: FormState[]) {
+    if (isEdit || !parsedDrafts.length) return;
+
+    try {
+      const dates = Array.from(new Set(parsedDrafts.map((d) => d.event_date).filter(Boolean)));
+      const names = Array.from(new Set(parsedDrafts.map((d) => d.name).filter(Boolean)));
+
+      if (!dates.length || !names.length) return;
+
+      const { data, error } = await supabase
+        .from("events")
+        .select("id, name, event_date")
+        .in("event_date", dates)
+        .in("name", names);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setExistingIds(data.map((item) => item.id));
+        setIsUpdateConfirmed(true);
+      } else {
+        setExistingIds([]);
+        setIsUpdateConfirmed(false);
+      }
+    } catch (err) {
+      console.error("Error checking existing events:", err);
+    }
   }
 
   async function handleFile(file: File) {
@@ -122,7 +154,6 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
       const buf = await file.arrayBuffer();
       setParseStatus("Extracting text…");
 
-      // 1. structured parser for the Voco BEO layout
       const { pages, pageWidth } = await pdfToItems(buf.slice(0));
       const beo = parseBeoPages(pages, pageWidth);
       const days = beoToDrafts(beo);
@@ -131,44 +162,49 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
         const chosen = isEdit
           ? [days.find((d) => d.event_date === existing!.event_date) ?? days[0]]
           : days;
-        setDrafts((prev) => chosen.map((d, i) => stateFromDay(d, prev[i] ?? prev[0])));
+        const newDrafts = chosen.map((d, i) => stateFromDay(d, drafts[i] ?? drafts[0]));
+        setDrafts(newDrafts);
         setActive(0);
+
+        // Check DB for matches
+        await checkExistingEvents(newDrafts);
+
         const extra = beo.warnings.length ? ` Note: ${beo.warnings.join(" ")}` : "";
         setParseStatus(
           (chosen.length > 1
-            ? `Found ${chosen.length} days in this BEO. Check each day (tabs below), then save.`
-            : "Auto-filled from PDF — please review every field below before saving.") + extra
+            ? `Found ${chosen.length} events in this BEO.`
+            : "Auto-filled from PDF — please review fields below.") + extra
         );
         return;
       }
 
-      // 2. fallback: generic text heuristics for other layouts
+      // Fallback
       const { lines } = await pdfToLines(buf.slice(0));
       const parsed = parseBeoLines(lines);
-      setDrafts((ds) =>
-        ds.map((f, i) =>
-          i !== 0
-            ? f
-            : {
-                ...f,
-                name: parsed.name || f.name,
-                event_date: parsed.event_date || f.event_date,
-                event_time: parsed.event_time || f.event_time,
-                room: parsed.room || f.room,
-                guests: parsed.guests != null ? String(parsed.guests) : f.guests,
-                am_break_item: parsed.am_break?.item || f.am_break_item,
-                pm_break_item: parsed.pm_break?.item || f.pm_break_item,
-                lunch_menu: parsed.lunch?.menu || f.lunch_menu,
-                dinner_menu: parsed.dinner?.menu || f.dinner_menu,
-                avit_details: parsed.avit?.details || f.avit_details,
-                banquet_notes: parsed.banquet?.notes || f.banquet_notes,
-              }
-        )
+      const updatedFallback = drafts.map((f, i) =>
+        i !== 0
+          ? f
+          : {
+              ...f,
+              name: parsed.name || f.name,
+              event_date: parsed.event_date || f.event_date,
+              event_time: parsed.event_time || f.event_time,
+              room: parsed.room || f.room,
+              guests: parsed.guests != null ? String(parsed.guests) : f.guests,
+              am_break_item: parsed.am_break?.item || f.am_break_item,
+              pm_break_item: parsed.pm_break?.item || f.pm_break_item,
+              lunch_menu: parsed.lunch?.menu || f.lunch_menu,
+              dinner_menu: parsed.dinner?.menu || f.dinner_menu,
+              avit_details: parsed.avit?.details || f.avit_details,
+              banquet_notes: parsed.banquet?.notes || f.banquet_notes,
+            }
       );
-      setParseStatus("Auto-filled from PDF (basic mode) — please review every field below before saving.");
+      setDrafts(updatedFallback);
+      await checkExistingEvents(updatedFallback);
+      setParseStatus("Auto-filled from PDF (basic mode) — please review fields below.");
     } catch (e) {
       console.error(e);
-      setParseStatus("Couldn't auto-read this PDF. It's still attached — please fill fields in manually.");
+      setParseStatus("Couldn't auto-read this PDF. Please fill fields in manually.");
     }
   }
 
@@ -186,7 +222,6 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
     e.preventDefault();
     setSaveError(null);
 
-    // the browser only checks the visible day, so check every day here
     for (let i = 0; i < drafts.length; i++) {
       if (!drafts[i].name.trim() || !drafts[i].event_date) {
         setActive(i);
@@ -215,7 +250,15 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
         if (error) throw error;
         onSaved(existing!.id);
       } else {
-        // each day gets its own copy of the PDF, so deleting one day never breaks another
+        // If existing duplicate events were detected and approved for replacement, remove them first
+        if (existingIds.length > 0 && isUpdateConfirmed) {
+          const { error: deleteErr } = await supabase
+            .from("events")
+            .delete()
+            .in("id", existingIds);
+          if (deleteErr) throw deleteErr;
+        }
+
         const rows = [];
         for (let i = 0; i < drafts.length; i++) {
           let pdf_path: string | null = null;
@@ -263,6 +306,30 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
         </label>
         {parseStatus && <p className="font-mono text-xs text-honey-700 mt-2">{parseStatus}</p>}
       </div>
+
+      {/* Duplicate warning & overwrite confirmation banner */}
+      {existingIds.length > 0 && (
+        <div className="mb-4 p-3.5 bg-amber-50 border border-amber-300 rounded-md text-amber-900 text-sm flex flex-col gap-2">
+          <div className="flex items-center gap-2 font-semibold">
+            <span>⚠️ Duplicate BEO detected</span>
+          </div>
+          <p className="text-xs text-amber-800">
+            {existingIds.length === 1
+              ? "An event matching this BEO already exists on the board."
+              : `${existingIds.length} events matching this BEO already exist on the board.`}{" "}
+            Saving will replace the existing entries with this updated version.
+          </p>
+          <label className="flex items-center gap-2 text-xs font-medium cursor-pointer mt-1">
+            <input
+              type="checkbox"
+              checked={isUpdateConfirmed}
+              onChange={(e) => setIsUpdateConfirmed(e.target.checked)}
+              className="rounded border-amber-400 text-honey-600 focus:ring-honey-500"
+            />
+            Overwrite existing events on save
+          </label>
+        </div>
+      )}
 
       {drafts.length > 1 && (
         <div className="flex gap-2 mb-4 flex-wrap">
@@ -359,10 +426,16 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
           </button>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || (existingIds.length > 0 && !isUpdateConfirmed)}
             className="flex-1 bg-honey-500 hover:bg-honey-600 disabled:opacity-60 text-ink font-semibold py-2.5 rounded-md transition-colors"
           >
-            {saving ? "Saving…" : drafts.length > 1 ? `Save ${drafts.length} days to board` : "Save to board"}
+            {saving
+              ? "Saving…"
+              : existingIds.length > 0
+              ? `Overwrite & Save (${drafts.length} ${drafts.length > 1 ? "days" : "day"})`
+              : drafts.length > 1
+              ? `Save ${drafts.length} days to board`
+              : "Save to board"}
           </button>
         </div>
       </form>
