@@ -13,6 +13,7 @@ interface Props {
 }
 
 type FormState = {
+  contract_number: string; // groups every day of one BEO upload together; not shown as a field
   name: string;
   event_date: string;
   event_time: string;
@@ -31,6 +32,7 @@ type FormState = {
 
 function initialState(ev?: BeoEvent): FormState {
   return {
+    contract_number: ev?.contract_number || "",
     name: ev?.name || "",
     event_date: ev?.event_date || "",
     event_time: ev?.event_time || "",
@@ -51,6 +53,7 @@ function initialState(ev?: BeoEvent): FormState {
 /** Turns one parsed BEO day into form values. */
 function stateFromDay(d: DayDraft, base: FormState): FormState {
   return {
+    contract_number: d.contract_number || "",
     name: d.name,
     event_date: d.event_date,
     event_time: d.event_time,
@@ -70,6 +73,7 @@ function stateFromDay(d: DayDraft, base: FormState): FormState {
 
 function makeRecord(form: FormState) {
   return {
+    contract_number: form.contract_number.trim(),
     name: form.name.trim(),
     event_date: form.event_date,
     event_time: form.event_time.trim(),
@@ -113,8 +117,19 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
   const [existingIds, setExistingIds] = useState<string[]>([]);
   const [isUpdateConfirmed, setIsUpdateConfirmed] = useState(false);
 
+  // Tracks whether the code was applied across all tabs
+  const [codeApplied, setCodeApplied] = useState(false);
+
   function set<K extends keyof FormState>(key: K, val: string) {
     setDrafts((ds) => ds.map((d, i) => (i === active ? { ...d, [key]: val } : d)));
+  }
+
+  // Copies the active draft's internet code across all event tabs
+  function applyCodeToAllEvents() {
+    const codeToApply = form.internet_code;
+    setDrafts((ds) => ds.map((d) => ({ ...d, internet_code: codeToApply })));
+    setCodeApplied(true);
+    setTimeout(() => setCodeApplied(false), 2500);
   }
 
   async function checkExistingEvents(parsedDrafts: FormState[]) {
@@ -358,7 +373,36 @@ export default function EventForm({ existing, onClose, onSaved }: Props) {
           <TextField label="Meeting Room" value={form.room} onChange={(v) => set("room", v)} />
           <TextField label="Guaranteed Guests" type="number" value={form.guests} onChange={(v) => set("guests", v)} />
           <TextField label="Expected Guests" type="number" value={form.guests_expected} onChange={(v) => set("guests_expected", v)} />
-          <TextField label="Internet Access Code" full value={form.internet_code} onChange={(v) => set("internet_code", v)} placeholder="Wi-Fi code for this event" />
+          
+          <div className="col-span-2">
+            <TextField 
+              label="Internet Access Code" 
+              full 
+              value={form.internet_code} 
+              onChange={(v) => {
+                set("internet_code", v);
+                setCodeApplied(false);
+              }} 
+              placeholder="Wi-Fi code for this event" 
+            />
+            {drafts.length > 1 && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={applyCodeToAllEvents}
+                  className="text-xs font-medium text-petrol-900 hover:text-honey-700 underline transition-colors flex items-center gap-1"
+                >
+                  ⚡ Apply this code to all {drafts.length} events in this BEO
+                </button>
+
+                {codeApplied && (
+                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded transition-all">
+                    ✓ Applied to all {drafts.length} tabs!
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <Fieldset legend="AM Coffee Break">

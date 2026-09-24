@@ -37,11 +37,29 @@ export default function EventDetail() {
   const [showPdf, setShowPdf] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // every other day that came from the same BEO upload (same contract number), so we can
+  // offer "delete the whole BEO" when there's more than just this one day
+  const [siblings, setSiblings] = useState<BeoEvent[] | null>(null);
 
   async function load() {
     const { data, error } = await supabase.from("events").select("*").eq("id", id).single();
-    if (error) setError(error.message);
-    else setEvent(data as BeoEvent);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    const ev = data as BeoEvent;
+    setEvent(ev);
+
+    if (ev.contract_number) {
+      const { data: sibs } = await supabase
+        .from("events")
+        .select("*")
+        .eq("contract_number", ev.contract_number);
+      setSiblings((sibs as BeoEvent[]) ?? [ev]);
+    } else {
+      // no contract number saved (an older event, from before this field existed) — treat as standalone
+      setSiblings([ev]);
+    }
   }
 
   useEffect(() => {
@@ -51,9 +69,23 @@ export default function EventDetail() {
 
   async function handleDelete() {
     if (!event) return;
-    if (!confirm("Delete this event from the board? This can't be undone.")) return;
+    if (!confirm("Delete this day from the board? This can't be undone.")) return;
     setDeleting(true);
     const { error } = await supabase.from("events").delete().eq("id", event.id);
+    setDeleting(false);
+    if (error) {
+      alert("Couldn't delete: " + error.message);
+      return;
+    }
+    navigate("/");
+  }
+
+  async function handleDeleteAll() {
+    if (!event || !siblings) return;
+    const n = siblings.length;
+    if (!confirm(`Delete this entire BEO — all ${n} days on the board — from "${event.name}"? This can't be undone.`)) return;
+    setDeleting(true);
+    const { error } = await supabase.from("events").delete().eq("contract_number", event.contract_number);
     setDeleting(false);
     if (error) {
       alert("Couldn't delete: " + error.message);
@@ -112,8 +144,17 @@ export default function EventDetail() {
                       disabled={deleting}
                       className="text-sm border border-red-300 text-red-600 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-50"
                     >
-                      {deleting ? "Deleting…" : "Delete"}
+                      {deleting ? "Deleting…" : (siblings && siblings.length > 1 ? "Delete this day" : "Delete")}
                     </button>
+                    {siblings && siblings.length > 1 && (
+                      <button
+                        onClick={handleDeleteAll}
+                        disabled={deleting}
+                        className="text-sm border border-red-600 bg-red-50 text-red-700 font-medium rounded-md px-3 py-1.5 hover:bg-red-100 disabled:opacity-50"
+                      >
+                        {deleting ? "Deleting…" : `Delete entire BEO (${siblings.length} days)`}
+                      </button>
+                    )}
                   </>
                 )}
               </div>

@@ -13,7 +13,7 @@ const first = (s?: string) => (s || "").split("\n")[0];
 function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
   switch (cat.key) {
     case "internet":
-      return { lines: [ev.internet_code || ""], sub: "", mono: true };
+      return { lines: [ev.internet_code ? ev.internet_code.trim() : ""], sub: "", mono: true };
     case "banquet":
       return { lines: [ev.banquet?.setup || ""], sub: "" };
     case "avit":
@@ -65,9 +65,9 @@ export default function CategoryGrid({
             className={`text-left bg-neutral-100 border border-honey-500 border-l-4 ${cat.colorClass.split(" ")[0]} rounded-md p-3.5 min-h-[92px] flex flex-col gap-1 shadow-sm hover:shadow-md transition-shadow`}
           >
             <span className={`font-mono text-[10.5px] font-semibold tracking-wide ${cat.colorClass.split(" ")[1]}`}>
-     {cat.label.toUpperCase()}
-   </span>
-   {cat.key === "avit" && <AvIcons details={event.avit?.details} />}
+              {cat.label.toUpperCase()}
+            </span>
+            {cat.key === "avit" && <AvIcons details={event.avit?.details} />}
             {empty ? (
               <span className="text-[13px] font-medium leading-snug italic text-ink-faint">
                 Not set — Tap edit details to add

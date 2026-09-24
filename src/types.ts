@@ -24,6 +24,7 @@ export interface PaymentSection {
 
 export interface BeoEvent {
   id: string;
+  contract_number: string; // groups every day of one BEO upload together, for "delete entire BEO"
   name: string;
   event_date: string;   // YYYY-MM-DD
   event_time: string;
@@ -88,4 +89,4 @@ export function guestsLabel(ev: Pick<BeoEvent, "guests" | "guests_expected">): s
   if (e == null) return String(g);
   if (g == null) return `— / ${e}`;
   return `${g} / ${e}`;
-}
+} 
