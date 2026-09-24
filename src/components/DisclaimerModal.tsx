@@ -36,7 +36,7 @@ export default function DisclaimerModal() {
         </h2>
 
         <p className="text-sm text-ink-soft leading-relaxed">
-          This PWA relies on AI parsing and can make mistakes. Always refer to the original, latest BEO sent directly by the sales team as the ultimate source of truth.
+          This PWA relies on parsing and can make mistakes. Always refer to the original, latest BEO sent directly by the sales team as the ultimate source of information.
         </p>
 
         <button
