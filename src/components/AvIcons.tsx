@@ -19,6 +19,13 @@ const ICONS: AvIconDef[] = [
     icon: <img src={`${import.meta.env.BASE_URL}icons/internet.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
   },
   {
+    key: "laptop",
+    label: "Laptop / Computer",
+    test: /\blaptop\b/i,
+    icon: <img src={`${import.meta.env.BASE_URL}icons/laptop.png`} width={16} height={16} alt="" style={{ display: "block" }} />,
+  },
+  
+  {
     key: "projector",
     label: "projector",
     test: /\bprojector\b/i,
