@@ -4,20 +4,21 @@ import AvIcons from "./AvIcons";
 interface Preview {
   lines: string[];
   sub: string;
-  mono?: boolean; // show the main line in a monospace, larger style (internet code)
-  plain?: boolean; // never show the "not set" italic style (used for "tap to view")
+  mono?: boolean;
+  plain?: boolean;
 }
 
 const first = (s?: string) => (s || "").split("\n")[0];
 
 function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
+  if (!ev) return { lines: [""], sub: "" };
+
   switch (cat.key) {
     case "internet":
       return { lines: [ev.internet_code ? ev.internet_code.trim() : ""], sub: "", mono: true };
     case "banquet":
       return { lines: [ev.banquet?.setup || ""], sub: "" };
     case "avit":
-      // details are only shown after tapping the box
       return { lines: [ev.avit?.details ? "Tap to view more details" : ""], sub: "", plain: true };
     case "payment": {
       const d = ev.payment || {};
@@ -35,13 +36,14 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
     case "pm_break": {
       const d = ev[cat.key] || {};
       if (d.drinks_time || d.drinks) {
-        // coffee & tea and food are shown separately, each with its own time
         const lines = [`Coffee & tea · ${d.drinks_time || d.time || ""}`.replace(/ · $/, "")];
         if (d.item || d.time) lines.push(`Food · ${d.time || ""}`.replace(/ · $/, ""));
         return { lines, sub: d.location || "" };
       }
       return { lines: [first(d.item)], sub: [d.time, d.location].filter(Boolean).join(" · ") };
     }
+    default:
+      return { lines: [""], sub: "" };
   }
 }
 
@@ -67,7 +69,7 @@ export default function CategoryGrid({
             <span className={`font-mono text-[10.5px] font-semibold tracking-wide ${cat.colorClass.split(" ")[1]}`}>
               {cat.label.toUpperCase()}
             </span>
-            {cat.key === "avit" && <AvIcons details={event.avit?.details} />}
+            {cat.key === "avit" && <AvIcons details={event?.avit?.details} />}
             {empty ? (
               <span className="text-[13px] font-medium leading-snug italic text-ink-faint">
                 Not set — Tap edit details to add
