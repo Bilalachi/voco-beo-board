@@ -186,8 +186,16 @@ export function parseBeoPages(pages: TextItem[][], pageWidth = 612): BeoDocument
       }
       body = lines.slice(titleIdx + 1);
     } else {
-      warnings.push('A page had no date heading; attached to the previous day.');
-      body = lines;
+      // No date heading on this page — most often a trailing Revenue Summary page that repeats
+      // the document header at its top. Keep only from its first recognized section title
+      // onward, so that repeated header block never leaks into this day's notes.
+      const firstTitle = lines.findIndex((l) => l.centered && SECTION_TITLES.has(l.text.toLowerCase()));
+      if (firstTitle >= 0) {
+        body = lines.slice(firstTitle);
+      } else {
+        warnings.push('A page had no date heading and no recognizable section; attached to the previous day as-is.');
+        body = lines;
+      }
     }
     body = body.filter(
       (l) =>
@@ -541,7 +549,6 @@ function fmt12(t: string): string {
   return `${h % 12 === 0 ? 12 : h % 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`;
 }
 const range12 = (f: BeoFunction) => `${fmt12(f.start)} \u2013 ${fmt12(f.end)}`;
-const dur = (f: BeoFunction) => toMin(f.end) - toMin(f.start);
 const hasPrice = (t: string) => /(USD|\$)\s*\d|\d\s*(USD|\$)/i.test(t);
 
 type Kind = 'am' | 'pm' | 'continuous' | 'lunch' | 'dinner' | 'other';
@@ -646,7 +653,7 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
     for (const mainFn of mainEvents) {
       const draft: DayDraft = {
         contract_number: doc.contractNumber,
-        name: doc.account || doc.bookingName,
+        name: doc.bookingName || doc.account,
         event_date: day.date,
         event_time: range12(mainFn),
         room: mainFn.room,
@@ -695,6 +702,22 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
 
       if (continuous && !taken.has('am') && !taken.has('pm')) {
         draft.am_break = { ...emptyBreak(), location: continuous.room, drinks_time: range12(continuous) };
+      }
+
+      // A wedding, birthday or other private event has no separate "Lunch"/"Dinner" row in the
+      // schedule — its own Food block is the whole meal, matched to this function directly. Put
+      // it in Dinner or Lunch by its start time, but only if that box isn't already taken by a
+      // genuine Lunch/Dinner function elsewhere on the same day.
+      const ownMenu = menuText(mainFn);
+      if (ownMenu) {
+        const mealKind: 'lunch' | 'dinner' = toMin(mainFn.start) >= 16 * 60 ? 'dinner' : 'lunch';
+        if (!taken.has(mealKind)) {
+          const meal = { time: range12(mainFn), location: mainFn.room, menu: ownMenu };
+          if (mealKind === 'dinner') draft.dinner = meal;
+          else draft.lunch = meal;
+        } else {
+          also.push(`Also: ${range12(mainFn)} ${mainFn.room} \u2013 ${mainFn.function} menu (see original PDF)`);
+        }
       }
 
       draft.banquet.notes = [...bqLines, ...also].join('\n');
