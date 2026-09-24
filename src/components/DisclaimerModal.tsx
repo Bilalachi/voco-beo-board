@@ -42,7 +42,7 @@ export default function DisclaimerModal() {
         <button
           type="button"
           onClick={dismissModal}
-          className="w-full bg-honey-500 hover:bg-honey-600 text-ink font-semibold py-2.5 rounded-lg transition-colors cursor-pointer"
+          className="w-full bg-honey-600 hover:bg-honey-600 text-ink font-semibold py-2.5 rounded-lg transition-colors cursor-pointer"
         >
           Continue
         </button>
