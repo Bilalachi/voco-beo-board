@@ -13,7 +13,7 @@ export default function DisclaimerModal() {
       // Auto-hide after 4 seconds
       const timer = setTimeout(() => {
         dismissModal();
-      }, 4000);
+      }, 9000);
 
       return () => clearTimeout(timer);
     }
@@ -36,7 +36,7 @@ export default function DisclaimerModal() {
         </h2>
 
         <p className="text-sm text-ink-soft leading-relaxed">
-          This PWA relies on parsing and can make mistakes. Always refer to the original, latest BEO sent directly by the sales team as the ultimate source of information.
+          This PWA relies on parsing and manually edited information, therefore it can make mistakes. Always refer to the original, latest BEO sent directly by the sales team as the ultimate source of information.
         </p>
 
         <button
