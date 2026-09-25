@@ -33,7 +33,6 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
     }
 
     case "lunch":
-        case "lunch":
     case "dinner": {
       const d = ev[cat.key] || {};
       const menuText = d.menu || "";
@@ -42,43 +41,38 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
         return { lines: [""], sub: [d.time, d.location].filter(Boolean).join(" · ") };
       }
 
-      // Split menu into clean lines and filter empty ones
-      const lines = menuText.split("\n").map((l: string) => l.trim()).filter(Boolean);
+      // Split menu into lines
+      const rawLines = menuText.split("\n").map((l: string) => l.trim()).filter(Boolean);
 
-      // Filter out generic beverage headers and stray previous-page carryovers
-      const foodLines = lines.filter(
-        (l: string) => !/^(open soft drinks|soft drinks|juices|beverages|mineral water|open beverages|sparkling water)/i.test(l)
+      // Filter out beverages and generic section headers (Cold Section, Hot Section, Salads, Desserts, etc.)
+      const cleanLines = rawLines.filter(
+        (l: string) =>
+          !/^(open soft drinks|soft drinks|juices|beverages|mineral water|open beverages|sparkling water)/i.test(l) &&
+          !/^(cold section|hot section|salads|main course|desserts|dessert|starters|appetizers)$/i.test(l)
       );
 
-      // Enhanced title matcher: look for "Buffet", "UN Buffet", "Set Menu", "Cocktail", "Cold Section", etc.
-      const titleMatch = foodLines.find((l: string) =>
-        /\b(buffet|set menu|cocktail|reception|lebanese|platted|seated|menu|luncheon|dinner)\b/i.test(l)
+      // Search specifically for menu title keywords (UN Buffet, Set Menu 1, Cocktail Reception, etc.)
+      const titleMatch = rawLines.find((l: string) =>
+        /\b(buffet|set menu|cocktail|reception|lebanese|platted|seated|luncheon|dinner)\b/i.test(l)
       );
 
-      // If a structural section header exists like "Cold Section" or "Salads", fallback to that if no title match
-      const sectionMatch = foodLines.find((l: string) =>
-        /^(cold section|hot section|salads|main course|buffet|menu)/i.test(l)
-      );
+      // Determine display title: title match > first clean food line > fallback "Buffet"
+      let displayTitle = titleMatch || cleanLines[0] || (cat.key === "lunch" ? "Lunch Buffet" : "Dinner Menu");
 
-      // Raw title candidate
-      const rawTitle = titleMatch || sectionMatch || foodLines.find((l) => !/cake|tart|muffin|pastry/i.test(l)) || lines[0] || "Menu";
-
-      // Clean trailing colons, dashes, and extra spaces
-      const cleanTitle = rawTitle.replace(/[:\-–\s]+$/, "").trim();
+      // Strip trailing colons, dashes, or "UN Buffet:" -> "UN Buffet"
+      displayTitle = displayTitle.replace(/[:\-–\s]+$/, "").trim();
 
       return {
-        lines: [cleanTitle],
+        lines: [displayTitle],
         actionHint: "· Tap to view details",
         sub: [d.time, d.location].filter(Boolean).join(" · "),
       };
     }
 
-
     case "am_break":
     case "pm_break": {
       const d = ev[cat.key] || {};
       
-      // Safely check d.drinks with a string fallback to satisfy TypeScript
       if (d.drinks_time || d.drinks) {
         let drinksLabel = "Coffee & tea";
         const drinksStr = d.drinks || "";
