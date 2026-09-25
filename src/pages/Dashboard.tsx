@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import EventRow from "../components/EventRow";
 import EventForm from "../components/EventForm";
@@ -107,6 +108,17 @@ export default function Dashboard() {
             ))}
           </div>
         ))}
+
+        {events !== null && (
+          <div className="text-center mt-10">
+            <Link
+              to="/past"
+              className="bg-honey-600 inline-block text-sm font-semibold border border-honey-600 rounded-md px-4 py-2 text-petrol-900 hover:border-petrol-900 hover:text-petrol-900 transition-colors"
+            >
+              See previous events
+            </Link>
+          </div>
+        )}
       </main>
 
       {showForm && <EventForm onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); }} />}

@@ -142,7 +142,7 @@ export default function EventDetail() {
                     <button
                       onClick={handleDelete}
                       disabled={deleting}
-                      className="text-sm border border-red-300 text-red-600 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-50"
+                      className="text-sm border border-red-600 text-red-600 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-50"
                     >
                       {deleting ? "Deleting…" : (siblings && siblings.length > 1 ? "Delete this day" : "Delete")}
                     </button>
