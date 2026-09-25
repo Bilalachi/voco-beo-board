@@ -33,6 +33,7 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
     }
 
     case "lunch":
+        case "lunch":
     case "dinner": {
       const d = ev[cat.key] || {};
       const menuText = d.menu || "";
@@ -41,16 +42,28 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
         return { lines: [""], sub: [d.time, d.location].filter(Boolean).join(" · ") };
       }
 
+      // Split menu into clean lines and filter empty ones
       const lines = menuText.split("\n").map((l: string) => l.trim()).filter(Boolean);
+
+      // Filter out generic beverage headers and stray previous-page carryovers
       const foodLines = lines.filter(
-        (l: string) => !/^(open soft drinks|soft drinks|juices|beverages|mineral water|open beverages)/i.test(l)
+        (l: string) => !/^(open soft drinks|soft drinks|juices|beverages|mineral water|open beverages|sparkling water)/i.test(l)
       );
 
+      // Enhanced title matcher: look for "Buffet", "UN Buffet", "Set Menu", "Cocktail", "Cold Section", etc.
       const titleMatch = foodLines.find((l: string) =>
-        /set menu|buffet|un|cocktail|reception|lebanese|platted|seated|menu/i.test(l)
+        /\b(buffet|set menu|cocktail|reception|lebanese|platted|seated|menu|luncheon|dinner)\b/i.test(l)
       );
 
-      const rawTitle = titleMatch || foodLines[0] || lines[0] || "Menu";
+      // If a structural section header exists like "Cold Section" or "Salads", fallback to that if no title match
+      const sectionMatch = foodLines.find((l: string) =>
+        /^(cold section|hot section|salads|main course|buffet|menu)/i.test(l)
+      );
+
+      // Raw title candidate
+      const rawTitle = titleMatch || sectionMatch || foodLines.find((l) => !/cake|tart|muffin|pastry/i.test(l)) || lines[0] || "Menu";
+
+      // Clean trailing colons, dashes, and extra spaces
       const cleanTitle = rawTitle.replace(/[:\-–\s]+$/, "").trim();
 
       return {
@@ -59,6 +72,7 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
         sub: [d.time, d.location].filter(Boolean).join(" · "),
       };
     }
+
 
     case "am_break":
     case "pm_break": {
