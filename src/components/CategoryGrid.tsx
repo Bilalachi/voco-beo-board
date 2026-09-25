@@ -47,7 +47,7 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
       );
 
       const titleMatch = foodLines.find((l: string) =>
-        /set menu|buffet|cocktail|reception|lebanese|platted|seated|menu/i.test(l)
+        /set menu|buffet|UN Buffet|cocktail|reception|lebanese|platted|seated|menu/i.test(l)
       );
 
       const rawTitle = titleMatch || foodLines[0] || lines[0] || "Menu";
