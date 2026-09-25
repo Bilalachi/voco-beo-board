@@ -418,14 +418,32 @@ function parseFood(lines: Line[]): CateringBlock[] {
   const starts: number[] = [];
   lines.forEach((l, i) => { if (/^Event ID\s*-\s*\S+/i.test(l.text)) starts.push(i - 1); });
   const blocks: CateringBlock[] = [];
+
   starts.forEach((s, bi) => {
     const end = bi + 1 < starts.length ? starts[bi + 1] : lines.length;
     const seg = lines.slice(Math.max(s, 0), end);
+
+    // Find where Event ID is located in this segment
+    const eventIdIdx = seg.findIndex((l) => /^Event ID\s*-\s*\S+/i.test(l.text));
+    
+    // The line immediately above Event ID is always the Room Name (e.g. "Atrio")
+    const roomLineIdx = eventIdIdx > 0 ? eventIdIdx - 1 : 0;
+    const roomName = seg[roomLineIdx]?.text || '';
+
     const b: CateringBlock = {
-      eventId: null, room: seg[0].text, start: null, end: null, name: '',
-      priceText: null, price: null, expected: null, guaranteed: null, menu: [],
+      eventId: null,
+      room: roomName,
+      start: null,
+      end: null,
+      name: '',
+      priceText: null,
+      price: null,
+      expected: null,
+      guaranteed: null,
+      menu: [],
     };
-    let i = 1;
+
+    let i = eventIdIdx >= 0 ? eventIdIdx : 1;
     for (; i < seg.length; i++) {
       const t = seg[i].text;
       let m: RegExpMatchArray | null;
@@ -435,6 +453,7 @@ function parseFood(lines: Line[]): CateringBlock[] {
       else if ((m = t.match(/^Exp\s+(\d+)\s*\/\s*Gtd\s+(\d+)/i))) { b.expected = +m[1]; b.guaranteed = +m[2]; i++; break; }
       else b.name = (b.name + ' ' + t).trim();
     }
+
     let group: string[] = [];
     for (; i < seg.length; i++) {
       const t = seg[i].text;
@@ -442,8 +461,15 @@ function parseFood(lines: Line[]): CateringBlock[] {
       else group.push(t);
     }
     if (group.length) b.menu.push(group);
+
+    // Clean up title if stray room names or top margin text remained in b.name
+    if (b.name) {
+      b.name = b.name.replace(new RegExp(`^${b.room}\\s*`, 'i'), '').trim();
+    }
+
     blocks.push(b);
   });
+
   return blocks;
 }
 
@@ -585,19 +611,11 @@ function splitBreak(f: BeoFunction): { drinks: string; food: string } {
   return { drinks: text(drinks), food: text(food) };
 }
 
-/** Formats a function's menu block, filtering out orphaned items carried over across page breaks */
 function menuText(f: BeoFunction): string {
-  const parts: { name: string; body: string }[] = f.catering.map((b) => {
-    // Filter out top-margin orphan items (like English Cake) that bleed into meal blocks from prior pages
-    const cleanGroups = b.menu.map((group) =>
-      group.filter((item) => !/^(English Cake|Mini Muffin|Opera)$/i.test(item.trim()))
-    ).filter((g) => g.length > 0);
-
-    return {
-      name: b.name,
-      body: cleanGroups.map((g) => g.join('\n')).join('\n\n'),
-    };
-  });
+  const parts: { name: string; body: string }[] = f.catering.map((b) => ({
+    name: b.name,
+    body: b.menu.map((g) => g.join('\n')).join('\n\n'),
+  }));
 
   for (const b of f.beverages) {
     if (!parts.some((p) => p.name.toLowerCase() === b.name.toLowerCase())) {
