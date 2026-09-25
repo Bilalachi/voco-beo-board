@@ -41,29 +41,35 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
         return { lines: [""], sub: [d.time, d.location].filter(Boolean).join(" · ") };
       }
 
-      // Split menu into lines
       const rawLines = menuText.split("\n").map((l: string) => l.trim()).filter(Boolean);
 
-      // Filter out beverages and generic section headers (Cold Section, Hot Section, Salads, Desserts, etc.)
-      const cleanLines = rawLines.filter(
-        (l: string) =>
-          !/^(open soft drinks|soft drinks|juices|beverages|mineral water|open beverages|sparkling water)/i.test(l) &&
-          !/^(cold section|hot section|salads|main course|desserts|dessert|starters|appetizers)$/i.test(l)
-      );
-
-      // Search specifically for menu title keywords (UN Buffet, Set Menu 1, Cocktail Reception, etc.)
+      // Search every line of the menu text for a recognized meal/buffet title keyword
       const titleMatch = rawLines.find((l: string) =>
         /\b(buffet|set menu|cocktail|reception|lebanese|platted|seated|luncheon|dinner)\b/i.test(l)
       );
 
-      // Determine display title: title match > first clean food line > fallback "Buffet"
-      let displayTitle = titleMatch || cleanLines[0] || (cat.key === "lunch" ? "Lunch Buffet" : "Dinner Menu");
+      let cleanTitle = "";
 
-      // Strip trailing colons, dashes, or "UN Buffet:" -> "UN Buffet"
-      displayTitle = displayTitle.replace(/[:\-–\s]+$/, "").trim();
+      if (titleMatch) {
+        // Strip out pre-pended stray items (e.g. "English Cake: UN Buffet" -> "UN Buffet")
+        cleanTitle = titleMatch.replace(/^.*?(buffet|set menu|cocktail|reception|lebanese|platted|seated|luncheon|dinner)/i, "$1");
+        
+        // If the matching line was "UN Buffet", restore the full line name
+        if (titleMatch.toLowerCase().includes("un buffet")) {
+          cleanTitle = "UN Buffet";
+        }
+      }
+
+      // If no keyword match was found in raw lines, fallback to a clean title
+      if (!cleanTitle) {
+        cleanTitle = cat.key === "lunch" ? "Lunch Menu" : "Dinner Menu";
+      }
+
+      // Clean trailing colons or punctuation
+      cleanTitle = cleanTitle.replace(/[:\-–\s]+$/, "").trim();
 
       return {
-        lines: [displayTitle],
+        lines: [cleanTitle],
         actionHint: "· Tap to view details",
         sub: [d.time, d.location].filter(Boolean).join(" · "),
       };
