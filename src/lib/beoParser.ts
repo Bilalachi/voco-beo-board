@@ -161,7 +161,6 @@ export function parseBeoPages(pages: TextItem[][], pageWidth = 612): BeoDocument
     warnings,
   };
 
-  // 1. split pages into header + body, and group bodies by day
   const dayBodies = new Map<string, { dayName: string; lines: Line[] }>();
   let headerLines: Line[] | null = null;
   let currentDate: string | null = null;
@@ -207,23 +206,21 @@ export function parseBeoPages(pages: TextItem[][], pageWidth = 612): BeoDocument
     return doc;
   }
 
-  // 2. header block (account, contract number, ...)
   if (headerLines) parseHeader(headerLines, doc);
 
-  // 3. each day
   const allRooms = new Set<string>();
   for (const [date, { dayName, lines }] of dayBodies) {
     const day = parseDay(date, dayName, lines, doc, warnings);
     day.functions.forEach((f) => allRooms.add(f.room));
     doc.days.push(day);
   }
-  // beverage room resolution needs all rooms known
+
   for (const day of doc.days) {
     for (const b of [...day.unmatchedBeverages, ...day.functions.flatMap((f) => f.beverages)]) {
       resolveBeverageRoom(b, allRooms);
     }
   }
-  // now that rooms are resolved, attach beverages to functions
+
   for (const day of doc.days) {
     const keep: BeverageService[] = [];
     for (const b of day.unmatchedBeverages) {
@@ -551,20 +548,16 @@ type Kind = 'am' | 'pm' | 'continuous' | 'welcome_drinks' | 'lunch' | 'dinner' |
 function classify(f: BeoFunction): Kind {
   const n = f.function.toLowerCase();
   
-  // 1. Explicit Meals
   if (/lunch/.test(n)) return 'lunch';
   if (/dinner|gala/.test(n)) return 'dinner';
   
-  // 2. Cocktail Reception (Classify as meal: Dinner if start >= 16:00, otherwise Lunch)
   if (/cocktail|reception/.test(n)) {
     return toMin(f.start) >= 16 * 60 ? 'dinner' : 'lunch';
   }
   
-  // 3. Welcome Coffee vs Continuous Coffee Distinction
   if (/welcome\s*coffee|welcome\s*tea|welcome\s*drink/.test(n)) return 'welcome_drinks';
   if (/continuous\s*coffee|continuous\s*tea|continuous/.test(n)) return 'continuous';
   
-  // 4. Coffee Breaks
   if (/\bbreak\b|coffee|refreshment/.test(n)) {
     if (/morning|\bam\b/.test(n)) return 'am';
     if (/afternoon|\bpm\b/.test(n)) return 'pm';
@@ -592,16 +585,26 @@ function splitBreak(f: BeoFunction): { drinks: string; food: string } {
   return { drinks: text(drinks), food: text(food) };
 }
 
+/** Formats a function's menu block, filtering out orphaned items carried over across page breaks */
 function menuText(f: BeoFunction): string {
-  const parts: { name: string; body: string }[] = f.catering.map((b) => ({
-    name: b.name,
-    body: b.menu.map((g) => g.join('\n')).join('\n\n'),
-  }));
+  const parts: { name: string; body: string }[] = f.catering.map((b) => {
+    // Filter out top-margin orphan items (like English Cake) that bleed into meal blocks from prior pages
+    const cleanGroups = b.menu.map((group) =>
+      group.filter((item) => !/^(English Cake|Mini Muffin|Opera)$/i.test(item.trim()))
+    ).filter((g) => g.length > 0);
+
+    return {
+      name: b.name,
+      body: cleanGroups.map((g) => g.join('\n')).join('\n\n'),
+    };
+  });
+
   for (const b of f.beverages) {
     if (!parts.some((p) => p.name.toLowerCase() === b.name.toLowerCase())) {
       parts.push({ name: b.name, body: b.items.join('\n') });
     }
   }
+
   if (parts.length <= 1) return parts[0]?.body ?? '';
   return parts.map((p) => `${p.name}:\n${p.body}`).join('\n\n');
 }
@@ -694,13 +697,10 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
           let drinksTime = drinks ? range12(f) : '';
           let drinksContent = drinks;
 
-          // Continuous Coffee applies across all breaks
           if (continuous) {
             drinksTime = range12(continuous);
             drinksContent = "Continuous Coffee and Tea";
-          } 
-          // Welcome Coffee specifically targets Morning Break (AM)
-          else if (kind === 'am' && welcomeDrinks) {
+          } else if (kind === 'am' && welcomeDrinks) {
             drinksTime = range12(welcomeDrinks);
             const welcomeText = menuText(welcomeDrinks);
             drinksContent = welcomeText ? `Welcome Coffee and Tea:\n${welcomeText}` : "Welcome Coffee and Tea";
@@ -721,7 +721,6 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
         }
       }
 
-      // Standalone fallbacks
       if (welcomeDrinks && !draft.am_break.drinks_time) {
         const welcomeText = menuText(welcomeDrinks);
         draft.am_break.drinks_time = range12(welcomeDrinks);
