@@ -13,8 +13,7 @@ export default function EventRow({ event }: { event: BeoEvent }) {
   return (
     <Link
       to={`/event/${event.id}`}
-      className="block bg-white border border-neutral-200 rounded-lg px-3.5 py-3 mb-2 shadow-sm hover:border-honey-500 hover:shadow-md transition-all"
-    >
+      className="block bg-white border border-neutral-200 rounded-lg px-3.5 py-3 mb-2 shadow-lg hover:border-honey-500 hover:shadow-lg hover:shadow-honey-500/40 hover:-translate-y-1 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 ease-out">
       {/* top: time on the left, guests on the right */}
       <div className="flex items-baseline justify-between gap-3 font-mono text-[11px] text-ink-soft">
         <span>{event.event_time || "—"}</span>

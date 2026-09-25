@@ -30,7 +30,13 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
     case "lunch":
     case "dinner": {
       const d = ev[cat.key] || {};
-      return { lines: [first(d.menu)], sub: [d.time, d.location].filter(Boolean).join(" · ") };
+      const hasMenu = Boolean(d.menu && d.menu.trim());
+      
+      return { 
+        lines: [hasMenu ? "Tap to view details" : ""], 
+        sub: [d.time, d.location].filter(Boolean).join(" · "),
+        plain: hasMenu
+      };
     }
     case "am_break":
     case "pm_break": {
