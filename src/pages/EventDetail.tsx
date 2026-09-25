@@ -159,7 +159,7 @@ export default function EventDetail() {
         {event && (
           <>
             {/* EVENT HEADER CARD */}
-            <div className="bg-white border border-neutral-200 rounded-lg p-5 mb-5 shadow-sm">
+            <div className="bg-neutral-100 border border-neutral-300 rounded-lg p-5 mb-5 shadow-sm hover:shadow-md hover:border-honey-500 transition-shadow">
               <h1 className="font-display text-2xl font-semibold text-ink mb-3">
                 {event.name || "Untitled event"}
               </h1>
@@ -198,7 +198,7 @@ export default function EventDetail() {
                       type="button"
                       onClick={() => setShowDeleteDayModal(true)}
                       disabled={deleting}
-                      className="text-sm border border-red-300 text-red-600 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-50 cursor-pointer font-medium"
+                      className="text-sm border border-red-300 text-red-600 rounded-md px-3 py-1.5 hover:bg-red-200 disabled:opacity-50 cursor-pointer font-medium"
                     >
                       {deleting ? "Deleting…" : (siblings && siblings.length > 1 ? "Delete this day" : "Delete")}
                     </button>

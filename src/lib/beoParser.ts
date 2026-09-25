@@ -168,7 +168,6 @@ export function parseBeoPages(pages: TextItem[][], pageWidth = 612): BeoDocument
 
   for (const [pageNo, items] of pages.entries()) {
     const built = buildLines(items);
-    // section titles (Food, Beverage Service, ...) are centred on the page
     const center = pageWidth / 2;
     const lines = built.map((l) => ({
       ...l,
@@ -186,9 +185,6 @@ export function parseBeoPages(pages: TextItem[][], pageWidth = 612): BeoDocument
       }
       body = lines.slice(titleIdx + 1);
     } else {
-      // No date heading on this page — most often a trailing Revenue Summary page that repeats
-      // the document header at its top. Keep only from its first recognized section title
-      // onward, so that repeated header block never leaks into this day's notes.
       const firstTitle = lines.findIndex((l) => l.centered && SECTION_TITLES.has(l.text.toLowerCase()));
       if (firstTitle >= 0) {
         body = lines.slice(firstTitle);
@@ -272,7 +268,6 @@ function parseHeader(lines: Line[], doc: BeoDocument) {
         }
       }
       if (!sawLabel && lastLabel[side]) {
-        // wrapped continuation line (e.g. second line of the address)
         const k = lastLabel[side]!;
         values[k] = (values[k] + ' ' + cells.map((c) => c.text).join(' ')).trim();
       }
@@ -286,7 +281,6 @@ function parseHeader(lines: Line[], doc: BeoDocument) {
 
 /* ----------------------------------------------------------------- day */
 
-/** Exact room + time match first, otherwise the shortest function in that room that contains the start time. */
 function pickFunction(fns: BeoFunction[], room: string | null, start: string | null, end: string | null) {
   if (!start) return undefined;
   const sameRoom = fns.filter((f) => f.room === room);
@@ -297,6 +291,7 @@ function pickFunction(fns: BeoFunction[], room: string | null, start: string | n
       .sort((a, b) => toMin(a.end) - toMin(a.start) - (toMin(b.end) - toMin(b.start)))[0]
   );
 }
+
 function toMin(t: string) {
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
@@ -522,7 +517,7 @@ export interface BreakDraft {
   location: string;
   item: string; // food items
   drinks_time: string; // coffee & tea time
-  drinks: string; // coffee & tea items
+  drinks: string; // coffee & tea items or explicit label
 }
 
 export interface DayDraft {
@@ -551,18 +546,31 @@ function fmt12(t: string): string {
 const range12 = (f: BeoFunction) => `${fmt12(f.start)} \u2013 ${fmt12(f.end)}`;
 const hasPrice = (t: string) => /(USD|\$)\s*\d|\d\s*(USD|\$)/i.test(t);
 
-type Kind = 'am' | 'pm' | 'continuous' | 'lunch' | 'dinner' | 'other';
+type Kind = 'am' | 'pm' | 'continuous' | 'welcome_drinks' | 'lunch' | 'dinner' | 'other';
 
 function classify(f: BeoFunction): Kind {
   const n = f.function.toLowerCase();
+  
+  // 1. Explicit Meals
   if (/lunch/.test(n)) return 'lunch';
   if (/dinner|gala/.test(n)) return 'dinner';
-  if (/continuous/.test(n)) return 'continuous';
+  
+  // 2. Cocktail Reception (Classify as meal: Dinner if start >= 16:00, otherwise Lunch)
+  if (/cocktail|reception/.test(n)) {
+    return toMin(f.start) >= 16 * 60 ? 'dinner' : 'lunch';
+  }
+  
+  // 3. Welcome Coffee vs Continuous Coffee Distinction
+  if (/welcome\s*coffee|welcome\s*tea|welcome\s*drink/.test(n)) return 'welcome_drinks';
+  if (/continuous\s*coffee|continuous\s*tea|continuous/.test(n)) return 'continuous';
+  
+  // 4. Coffee Breaks
   if (/\bbreak\b|coffee|refreshment/.test(n)) {
     if (/morning|\bam\b/.test(n)) return 'am';
     if (/afternoon|\bpm\b/.test(n)) return 'pm';
     return f.start < '12:00' ? 'am' : 'pm';
   }
+  
   return 'other';
 }
 
@@ -640,16 +648,14 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
     const fns = day.functions;
     const classified = fns.map((f) => ({ fn: f, kind: classify(f) }));
 
-    // Extract all meeting/event functions ('other' kind)
     const primaryFns = classified
       .filter((c) => c.kind === 'other')
       .map((c) => c.fn);
 
-    // If no explicit meeting functions are classified, fallback to all functions
     const mainEvents = primaryFns.length > 0 ? primaryFns : fns;
     const continuous = fns.find((f) => classify(f) === 'continuous');
+    const welcomeDrinks = fns.find((f) => classify(f) === 'welcome_drinks');
 
-    // Create a separate DayDraft for each primary meeting room booking on this day
     for (const mainFn of mainEvents) {
       const draft: DayDraft = {
         contract_number: doc.contractNumber,
@@ -671,9 +677,8 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
       const also: string[] = [];
       const taken = new Set<string>();
 
-      // Attach shared breaks/lunches/dinners to this draft
       for (const { fn: f, kind } of classified) {
-        if (mainEvents.includes(f) || f === continuous) continue;
+        if (mainEvents.includes(f) || f === continuous || f === welcomeDrinks) continue;
 
         if (kind === 'other' || taken.has(kind)) {
           also.push(`Also: ${range12(f)} ${f.room} \u2013 ${f.function}`);
@@ -685,11 +690,27 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
 
         if (kind === 'am' || kind === 'pm') {
           const { drinks, food } = splitBreak(f);
+          
+          let drinksTime = drinks ? range12(f) : '';
+          let drinksContent = drinks;
+
+          // Continuous Coffee applies across all breaks
+          if (continuous) {
+            drinksTime = range12(continuous);
+            drinksContent = "Continuous Coffee and Tea";
+          } 
+          // Welcome Coffee specifically targets Morning Break (AM)
+          else if (kind === 'am' && welcomeDrinks) {
+            drinksTime = range12(welcomeDrinks);
+            const welcomeText = menuText(welcomeDrinks);
+            drinksContent = welcomeText ? `Welcome Coffee and Tea:\n${welcomeText}` : "Welcome Coffee and Tea";
+          }
+
           const b: BreakDraft = {
             ...base,
             item: food,
-            drinks,
-            drinks_time: drinks || continuous ? range12(continuous ?? f) : '',
+            drinks: drinksContent,
+            drinks_time: drinksTime,
           };
           if (kind === 'am') draft.am_break = b;
           else draft.pm_break = b;
@@ -700,14 +721,21 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
         }
       }
 
-      if (continuous && !taken.has('am') && !taken.has('pm')) {
-        draft.am_break = { ...emptyBreak(), location: continuous.room, drinks_time: range12(continuous) };
+      // Standalone fallbacks
+      if (welcomeDrinks && !draft.am_break.drinks_time) {
+        const welcomeText = menuText(welcomeDrinks);
+        draft.am_break.drinks_time = range12(welcomeDrinks);
+        draft.am_break.drinks = welcomeText ? `Welcome Coffee and Tea:\n${welcomeText}` : "Welcome Coffee and Tea";
+        if (!draft.am_break.location) draft.am_break.location = welcomeDrinks.room;
+      } else if (continuous && !draft.am_break.drinks_time && !draft.pm_break.drinks_time) {
+        draft.am_break = {
+          ...emptyBreak(),
+          location: continuous.room,
+          drinks_time: range12(continuous),
+          drinks: "Continuous Coffee and Tea",
+        };
       }
 
-      // A wedding, birthday or other private event has no separate "Lunch"/"Dinner" row in the
-      // schedule — its own Food block is the whole meal, matched to this function directly. Put
-      // it in Dinner or Lunch by its start time, but only if that box isn't already taken by a
-      // genuine Lunch/Dinner function elsewhere on the same day.
       const ownMenu = menuText(mainFn);
       if (ownMenu) {
         const mealKind: 'lunch' | 'dinner' = toMin(mainFn.start) >= 16 * 60 ? 'dinner' : 'lunch';

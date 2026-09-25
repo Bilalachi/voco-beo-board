@@ -56,7 +56,7 @@ export default function CategoryModal({
 
 function Part({ title, time, items }: { title: string; time?: string; items?: string }) {
   return (
-    <div className="border border-black rounded-md p-3.5 space-y-2">
+    <div className="border border-neutral-200 rounded-md p-3.5 space-y-2">
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-mono text-[10.5px] uppercase tracking-wide text-ink-soft">{title}</span>
         {time && <span className="font-mono text-[12px] text-ink">{time}</span>}
