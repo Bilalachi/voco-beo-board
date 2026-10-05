@@ -423,10 +423,7 @@ function parseFood(lines: Line[]): CateringBlock[] {
     const end = bi + 1 < starts.length ? starts[bi + 1] : lines.length;
     const seg = lines.slice(Math.max(s, 0), end);
 
-    // Find where Event ID is located in this segment
     const eventIdIdx = seg.findIndex((l) => /^Event ID\s*-\s*\S+/i.test(l.text));
-    
-    // The line immediately above Event ID is always the Room Name (e.g. "Atrio")
     const roomLineIdx = eventIdIdx > 0 ? eventIdIdx - 1 : 0;
     const roomName = seg[roomLineIdx]?.text || '';
 
@@ -462,7 +459,6 @@ function parseFood(lines: Line[]): CateringBlock[] {
     }
     if (group.length) b.menu.push(group);
 
-    // Clean up title if stray room names or top margin text remained in b.name
     if (b.name) {
       b.name = b.name.replace(new RegExp(`^${b.room}\\s*`, 'i'), '').trim();
     }
@@ -569,11 +565,12 @@ function fmt12(t: string): string {
 const range12 = (f: BeoFunction) => `${fmt12(f.start)} \u2013 ${fmt12(f.end)}`;
 const hasPrice = (t: string) => /(USD|\$)\s*\d|\d\s*(USD|\$)/i.test(t);
 
-type Kind = 'am' | 'pm' | 'continuous' | 'welcome_drinks' | 'lunch' | 'dinner' | 'other';
+type Kind = 'breakfast' | 'am' | 'pm' | 'continuous' | 'welcome_drinks' | 'lunch' | 'dinner' | 'other';
 
 function classify(f: BeoFunction): Kind {
   const n = f.function.toLowerCase();
   
+  if (/breakfast/.test(n)) return 'breakfast';
   if (/lunch/.test(n)) return 'lunch';
   if (/dinner|gala/.test(n)) return 'dinner';
   
@@ -736,6 +733,14 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
           draft.lunch = { ...base, menu: menuText(f) };
         } else if (kind === 'dinner') {
           draft.dinner = { ...base, menu: menuText(f) };
+        } else if (kind === 'breakfast') {
+          draft.am_break = {
+            time: range12(f),
+            location: f.room,
+            item: menuText(f) || f.function,
+            drinks_time: range12(f),
+            drinks: 'Breakfast Beverage Service',
+          };
         }
       }
 
