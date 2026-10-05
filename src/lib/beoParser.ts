@@ -161,7 +161,6 @@ export function parseBeoPages(pages: TextItem[][], pageWidth = 612): BeoDocument
     warnings,
   };
 
-  // 1. split pages into header + body, and group bodies by day
   const dayBodies = new Map<string, { dayName: string; lines: Line[] }>();
   let headerLines: Line[] | null = null;
   let currentDate: string | null = null;
@@ -207,23 +206,21 @@ export function parseBeoPages(pages: TextItem[][], pageWidth = 612): BeoDocument
     return doc;
   }
 
-  // 2. header block (account, contract number, ...)
   if (headerLines) parseHeader(headerLines, doc);
 
-  // 3. each day
   const allRooms = new Set<string>();
   for (const [date, { dayName, lines }] of dayBodies) {
     const day = parseDay(date, dayName, lines, doc, warnings);
     day.functions.forEach((f) => allRooms.add(f.room));
     doc.days.push(day);
   }
-  // beverage room resolution needs all rooms known
+
   for (const day of doc.days) {
     for (const b of [...day.unmatchedBeverages, ...day.functions.flatMap((f) => f.beverages)]) {
       resolveBeverageRoom(b, allRooms);
     }
   }
-  // now that rooms are resolved, attach beverages to functions
+
   for (const day of doc.days) {
     const keep: BeverageService[] = [];
     for (const b of day.unmatchedBeverages) {
@@ -421,14 +418,29 @@ function parseFood(lines: Line[]): CateringBlock[] {
   const starts: number[] = [];
   lines.forEach((l, i) => { if (/^Event ID\s*-\s*\S+/i.test(l.text)) starts.push(i - 1); });
   const blocks: CateringBlock[] = [];
+
   starts.forEach((s, bi) => {
     const end = bi + 1 < starts.length ? starts[bi + 1] : lines.length;
     const seg = lines.slice(Math.max(s, 0), end);
+
+    const eventIdIdx = seg.findIndex((l) => /^Event ID\s*-\s*\S+/i.test(l.text));
+    const roomLineIdx = eventIdIdx > 0 ? eventIdIdx - 1 : 0;
+    const roomName = seg[roomLineIdx]?.text || '';
+
     const b: CateringBlock = {
-      eventId: null, room: seg[0].text, start: null, end: null, name: '',
-      priceText: null, price: null, expected: null, guaranteed: null, menu: [],
+      eventId: null,
+      room: roomName,
+      start: null,
+      end: null,
+      name: '',
+      priceText: null,
+      price: null,
+      expected: null,
+      guaranteed: null,
+      menu: [],
     };
-    let i = 1;
+
+    let i = eventIdIdx >= 0 ? eventIdIdx : 1;
     for (; i < seg.length; i++) {
       const t = seg[i].text;
       let m: RegExpMatchArray | null;
@@ -438,6 +450,7 @@ function parseFood(lines: Line[]): CateringBlock[] {
       else if ((m = t.match(/^Exp\s+(\d+)\s*\/\s*Gtd\s+(\d+)/i))) { b.expected = +m[1]; b.guaranteed = +m[2]; i++; break; }
       else b.name = (b.name + ' ' + t).trim();
     }
+
     let group: string[] = [];
     for (; i < seg.length; i++) {
       const t = seg[i].text;
@@ -445,8 +458,14 @@ function parseFood(lines: Line[]): CateringBlock[] {
       else group.push(t);
     }
     if (group.length) b.menu.push(group);
+
+    if (b.name) {
+      b.name = b.name.replace(new RegExp(`^${b.room}\\s*`, 'i'), '').trim();
+    }
+
     blocks.push(b);
   });
+
   return blocks;
 }
 
@@ -546,25 +565,22 @@ function fmt12(t: string): string {
 const range12 = (f: BeoFunction) => `${fmt12(f.start)} \u2013 ${fmt12(f.end)}`;
 const hasPrice = (t: string) => /(USD|\$)\s*\d|\d\s*(USD|\$)/i.test(t);
 
-type Kind = 'am' | 'pm' | 'continuous' | 'welcome_drinks' | 'lunch' | 'dinner' | 'other';
+type Kind = 'breakfast' | 'am' | 'pm' | 'continuous' | 'welcome_drinks' | 'lunch' | 'dinner' | 'other';
 
 function classify(f: BeoFunction): Kind {
   const n = f.function.toLowerCase();
   
-  // 1. Explicit Meals
+  if (/breakfast/.test(n)) return 'breakfast';
   if (/lunch/.test(n)) return 'lunch';
   if (/dinner|gala/.test(n)) return 'dinner';
   
-  // 2. Cocktail Reception (Classify as meal: Dinner if start >= 16:00, otherwise Lunch)
   if (/cocktail|reception/.test(n)) {
     return toMin(f.start) >= 16 * 60 ? 'dinner' : 'lunch';
   }
   
-  // 3. Welcome Coffee vs Continuous Coffee Distinction
   if (/welcome\s*coffee|welcome\s*tea|welcome\s*drink/.test(n)) return 'welcome_drinks';
   if (/continuous\s*coffee|continuous\s*tea|continuous/.test(n)) return 'continuous';
   
-  // 4. Coffee Breaks
   if (/\bbreak\b|coffee|refreshment/.test(n)) {
     if (/morning|\bam\b/.test(n)) return 'am';
     if (/afternoon|\bpm\b/.test(n)) return 'pm';
@@ -597,11 +613,13 @@ function menuText(f: BeoFunction): string {
     name: b.name,
     body: b.menu.map((g) => g.join('\n')).join('\n\n'),
   }));
+
   for (const b of f.beverages) {
     if (!parts.some((p) => p.name.toLowerCase() === b.name.toLowerCase())) {
       parts.push({ name: b.name, body: b.items.join('\n') });
     }
   }
+
   if (parts.length <= 1) return parts[0]?.body ?? '';
   return parts.map((p) => `${p.name}:\n${p.body}`).join('\n\n');
 }
@@ -694,13 +712,10 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
           let drinksTime = drinks ? range12(f) : '';
           let drinksContent = drinks;
 
-          // Continuous Coffee applies across all breaks
           if (continuous) {
             drinksTime = range12(continuous);
             drinksContent = "Continuous Coffee and Tea";
-          } 
-          // Welcome Coffee specifically targets Morning Break (AM)
-          else if (kind === 'am' && welcomeDrinks) {
+          } else if (kind === 'am' && welcomeDrinks) {
             drinksTime = range12(welcomeDrinks);
             const welcomeText = menuText(welcomeDrinks);
             drinksContent = welcomeText ? `Welcome Coffee and Tea:\n${welcomeText}` : "Welcome Coffee and Tea";
@@ -721,7 +736,6 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
         }
       }
 
-      // Standalone fallbacks
       if (welcomeDrinks && !draft.am_break.drinks_time) {
         const welcomeText = menuText(welcomeDrinks);
         draft.am_break.drinks_time = range12(welcomeDrinks);
