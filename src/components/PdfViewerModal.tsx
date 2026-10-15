@@ -15,12 +15,20 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
+  // Touch tracking refs
   const pinchRef = useRef<{
     dist: number;
     scale: number;
     x: number;
     y: number;
     center: { x: number; y: number };
+  } | null>(null);
+
+  const panRef = useRef<{
+    x: number;
+    y: number;
+    startX: number;
+    startY: number;
   } | null>(null);
 
   useEffect(() => {
@@ -42,7 +50,7 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
   async function renderPage(n: number, pdf = pdfRef.current) {
     if (!pdf || !canvasRef.current) return;
     const page = await pdf.getPage(n);
-    const viewport = page.getViewport({ scale: 1.4 }); // Original default scale
+    const viewport = page.getViewport({ scale: 1.4 }); // Your exact original scale
     const canvas = canvasRef.current;
     canvas.width = viewport.width;
     canvas.height = viewport.height;
@@ -57,9 +65,11 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
     setPosition({ x: 0, y: 0 });
   }
 
-  // Touch Pinch Handlers
+  // Touch Start (Handles both 2-finger pinch and 1-finger drag/pan)
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 2 && containerRef.current) {
+      // 2 Fingers: Pinch Zoom
+      panRef.current = null;
       const t1 = e.touches[0];
       const t2 = e.touches[1];
 
@@ -76,11 +86,23 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
         y: position.y,
         center,
       };
+    } else if (e.touches.length === 1 && scale > 1) {
+      // 1 Finger: Pan/Move while zoomed in
+      pinchRef.current = null;
+      const touch = e.touches[0];
+      panRef.current = {
+        x: position.x,
+        y: position.y,
+        startX: touch.clientX,
+        startY: touch.clientY,
+      };
     }
   };
 
+  // Touch Move
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 2 && pinchRef.current) {
+      // Pinching
       const t1 = e.touches[0];
       const t2 = e.touches[1];
 
@@ -105,11 +127,22 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
       }
 
       setScale(newScale);
+    } else if (e.touches.length === 1 && panRef.current && scale > 1) {
+      // Single Finger Drag/Pan
+      const touch = e.touches[0];
+      const dx = touch.clientX - panRef.current.startX;
+      const dy = touch.clientY - panRef.current.startY;
+
+      setPosition({
+        x: panRef.current.x + dx,
+        y: panRef.current.y + dy,
+      });
     }
   };
 
   const handleTouchEnd = () => {
     pinchRef.current = null;
+    panRef.current = null;
   };
 
   return (
@@ -129,7 +162,7 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
           style={{
             transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${scale})`,
             transformOrigin: "center top",
-            transition: pinchRef.current ? "none" : "transform 0.15s ease-out",
+            transition: pinchRef.current || panRef.current ? "none" : "transform 0.15s ease-out",
           }}
         >
           <canvas ref={canvasRef} className="max-w-full shadow-lg bg-white mx-auto block" />
