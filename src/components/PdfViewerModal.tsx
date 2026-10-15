@@ -6,7 +6,7 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pageNum, setPageNum] = useState(1);
   const [numPages, setNumPages] = useState(0);
-  const [scale, setScale] = useState(1.4);
+  const [scale, setScale] = useState(1.0);
   const [error, setError] = useState<string | null>(null);
   const pdfRef = useRef<any>(null);
 
@@ -18,7 +18,7 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
         const pdf = await loadPdf(buf);
         pdfRef.current = pdf;
         setNumPages(pdf.numPages);
-        renderPage(1, 1.4, pdf);
+        renderPage(1, 1.0, pdf);
       } catch (e: any) {
         setError("Couldn't load the original PDF.");
       }
@@ -39,7 +39,7 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
   }
 
   function handleZoom(delta: number) {
-    const newScale = Math.min(Math.max(scale + delta, 0.8), 3.0);
+    const newScale = Math.min(Math.max(scale + delta, 0.6), 2.5);
     setScale(newScale);
     renderPage(pageNum, newScale);
   }
@@ -48,7 +48,7 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
     <Modal title="Original BEO" onClose={onClose} wide>
       {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
       
-      {/* Scrollable Container (allows zooming past container width without squeezing) */}
+      {/* Scrollable Container */}
       <div className="bg-neutral-100 rounded-md p-3 text-center overflow-auto max-h-[70vh]">
         <canvas ref={canvasRef} className="shadow-lg bg-white mx-auto block" />
       </div>
@@ -59,19 +59,19 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
         <div className="flex items-center gap-1 bg-neutral-100 p-0.5 rounded-md border text-xs">
           <button
             className="px-2 py-1 rounded hover:bg-white text-neutral-700 font-bold transition disabled:opacity-30"
-            onClick={() => handleZoom(-0.3)}
-            disabled={scale <= 0.8}
+            onClick={() => handleZoom(-0.2)}
+            disabled={scale <= 0.6}
             title="Zoom Out"
           >
             –
           </button>
           <span className="font-mono text-[11px] text-neutral-500 min-w-[36px] text-center select-none">
-            {Math.round((scale / 1.4) * 100)}%
+            {Math.round(scale * 100)}%
           </span>
           <button
             className="px-2 py-1 rounded hover:bg-white text-neutral-700 font-bold transition disabled:opacity-30"
-            onClick={() => handleZoom(0.3)}
-            disabled={scale >= 3.0}
+            onClick={() => handleZoom(0.2)}
+            disabled={scale >= 2.5}
             title="Zoom In"
           >
             +
