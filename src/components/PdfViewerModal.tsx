@@ -5,16 +5,23 @@ import { loadPdf } from "../lib/pdfParse";
 export default function PdfViewerModal({ url, onClose }: { url: string; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
   const [pageNum, setPageNum] = useState(1);
   const [numPages, setNumPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const pdfRef = useRef<any>(null);
 
-  // Touch pinch state
-  const [zoomScale, setZoomScale] = useState(1);
-  const [transformOrigin, setTransformOrigin] = useState("center top");
-  const initialPinchDistRef = useRef<number | null>(null);
-  const initialScaleRef = useRef<number>(1);
+  // Zoom & Pan State
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const pinchRef = useRef<{
+    dist: number;
+    scale: number;
+    x: number;
+    y: number;
+    center: { x: number; y: number };
+  } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -35,80 +42,122 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
   async function renderPage(n: number, pdf = pdfRef.current) {
     if (!pdf || !canvasRef.current) return;
     const page = await pdf.getPage(n);
-    const viewport = page.getViewport({ scale: 1.4 }); // Your exact original scale
+    const viewport = page.getViewport({ scale: 1.4 }); // Original default scale
     const canvas = canvasRef.current;
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d")!;
     await page.render({ canvasContext: ctx, viewport }).promise;
     setPageNum(n);
+    resetZoom();
   }
 
-  // Handle pinch gesture start
+  function resetZoom() {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }
+
+  // Touch Pinch Handlers
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 2 && containerRef.current) {
-      const touch1 = e.touches[0];
-      const touch2 = e.touches[1];
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
 
-      // Distance between fingers
-      const dist = Math.hypot(
-        touch1.clientX - touch2.clientX,
-        touch1.clientY - touch2.clientY
-      );
-      initialPinchDistRef.current = dist;
-      initialScaleRef.current = zoomScale;
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const center = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2,
+      };
 
-      // Calculate midpoint between fingers relative to the container
-      const rect = containerRef.current.getBoundingClientRect();
-      const midX = (touch1.clientX + touch2.clientX) / 2 - rect.left + containerRef.current.scrollLeft;
-      const midY = (touch1.clientY + touch2.clientY) / 2 - rect.top + containerRef.current.scrollTop;
-
-      setTransformOrigin(`${midX}px${midY}px`);
+      pinchRef.current = {
+        dist,
+        scale,
+        x: position.x,
+        y: position.y,
+        center,
+      };
     }
   };
 
-  // Handle pinch move
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length === 2 && initialPinchDistRef.current !== null) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const factor = dist / initialPinchDistRef.current;
-      const newScale = Math.min(Math.max(initialScaleRef.current * factor, 1), 3.5);
-      setZoomScale(newScale);
+    if (e.touches.length === 2 && pinchRef.current) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const factor = dist / pinchRef.current.dist;
+      const newScale = Math.min(Math.max(pinchRef.current.scale * factor, 1), 3.5);
+
+      if (newScale === 1) {
+        setPosition({ x: 0, y: 0 });
+      } else {
+        const center = {
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2,
+        };
+        const dx = center.x - pinchRef.current.center.x;
+        const dy = center.y - pinchRef.current.center.y;
+
+        setPosition({
+          x: pinchRef.current.x + dx,
+          y: pinchRef.current.y + dy,
+        });
+      }
+
+      setScale(newScale);
     }
   };
 
-  // Reset pinch reference
   const handleTouchEnd = () => {
-    initialPinchDistRef.current = null;
+    pinchRef.current = null;
   };
-
-  const isZoomed = zoomScale > 1.01;
 
   return (
     <Modal title="Original BEO" onClose={onClose} wide>
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-      
-      {/* Container with Focal-Point Touch Zoom */}
+      {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
+
+      {/* Main Touch Viewport */}
       <div
         ref={containerRef}
-        className="bg-neutral-100 rounded-md p-3 text-center overflow-auto touch-pan-x touch-pan-y max-h-[72vh]"
+        className="bg-neutral-100 rounded-md p-3 text-center overflow-hidden max-h-[72vh] flex justify-center items-start select-none"
+        style={{ touchAction: "none" }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         <div
-          className="inline-block"
           style={{
-            transform: `scale(${zoomScale})`,
-            transformOrigin: isZoomed ? transformOrigin : "center top",
-            transition: initialPinchDistRef.current ? "none" : "transform 0.15s ease-out",
+            transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${scale})`,
+            transformOrigin: "center top",
+            transition: pinchRef.current ? "none" : "transform 0.15s ease-out",
           }}
         >
-          <canvas
-            ref={canvasRef}
-            className={`${
-              isZoomed ? "" : "max-w-full"
-            } shadow-lg
+          <canvas ref={canvasRef} className="max-w-full shadow-lg bg-white mx-auto block" />
+        </div>
+      </div>
+
+      {/* Original Page Navigation */}
+      {numPages > 1 && (
+        <div className="flex items-center justify-center gap-4 pt-3">
+          <button
+            className="px-3 py-1.5 border rounded-md text-sm disabled:opacity-40"
+            disabled={pageNum <= 1}
+            onClick={() => renderPage(pageNum - 1)}
+          >
+            ‹ Prev
+          </button>
+          <span className="font-mono text-sm text-ink-soft">
+            {pageNum} / {numPages}
+          </span>
+          <button
+            className="px-3 py-1.5 border rounded-md text-sm disabled:opacity-40"
+            disabled={pageNum >= numPages}
+            onClick={() => renderPage(pageNum + 1)}
+          >
+            Next ›
+          </button>
+        </div>
+      )}
+    </Modal>
+  );
+}
