@@ -26,7 +26,6 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
-  // Re-render current page whenever scale changes
   useEffect(() => {
     if (pdfRef.current) {
       renderPage(pageNum, scale);
@@ -46,75 +45,79 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
   }
 
   const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.3, 3.0));
-  const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.3, 0.6));
+  const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.3, 0.7));
   const handleResetZoom = () => setScale(1.4);
 
   return (
     <Modal title="Original BEO" onClose={onClose} wide>
-      {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
+      {error ? (
+        <p className="text-red-600 text-sm p-4">{error}</p>
+      ) : (
+        <div className="relative bg-slate-900/5 rounded-xl border border-slate-200 overflow-hidden flex flex-col h-[78vh]">
+          {/* Floating Glassmorphism Toolbar */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 bg-slate-900/85 backdrop-blur-md text-white px-4 py-1.5 rounded-full shadow-xl border border-white/10 text-xs select-none">
+            {/* Page Navigation */}
+            {numPages > 1 && (
+              <div className="flex items-center gap-2 border-r border-white/20 pr-3">
+                <button
+                  className="hover:text-blue-400 transition disabled:opacity-30 disabled:hover:text-white"
+                  disabled={pageNum <= 1}
+                  onClick={() => renderPage(pageNum - 1)}
+                >
+                  ◀
+                </button>
+                <span className="font-mono text-[11px] text-slate-300">
+                  {pageNum} / {numPages}
+                </span>
+                <button
+                  className="hover:text-blue-400 transition disabled:opacity-30 disabled:hover:text-white"
+                  disabled={pageNum >= numPages}
+                  onClick={() => renderPage(pageNum + 1)}
+                >
+                  ▶
+                </button>
+              </div>
+            )}
 
-      {/* Toolbar Controls */}
-      <div className="flex items-center justify-between pb-3 border-b border-neutral-200 mb-3">
-        {/* Page Navigation */}
-        <div className="flex items-center gap-2">
-          {numPages > 1 && (
-            <>
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-2">
               <button
-                className="px-2.5 py-1 border rounded-md text-sm hover:bg-neutral-50 disabled:opacity-40"
-                disabled={pageNum <= 1}
-                onClick={() => renderPage(pageNum - 1)}
+                onClick={handleZoomOut}
+                disabled={scale <= 0.7}
+                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-slate-300 hover:text-white font-bold transition disabled:opacity-30"
+                title="Zoom Out"
               >
-                ‹ Prev
+                –
               </button>
-              <span className="font-mono text-xs text-slate-600">
-                Page {pageNum} / {numPages}
-              </span>
+
               <button
-                className="px-2.5 py-1 border rounded-md text-sm hover:bg-neutral-50 disabled:opacity-40"
-                disabled={pageNum >= numPages}
-                onClick={() => renderPage(pageNum + 1)}
+                onClick={handleResetZoom}
+                className="font-mono text-[11px] text-slate-300 hover:text-white transition px-1"
+                title="Reset Zoom"
               >
-                Next ›
+                {Math.round((scale / 1.4) * 100)}%
               </button>
-            </>
-          )}
-        </div>
 
-        {/* Zoom Controls */}
-        <div className="flex items-center gap-1.5 bg-neutral-100 p-1 rounded-lg border border-neutral-200">
-          <button
-            onClick={handleZoomOut}
-            className="px-2 py-0.5 rounded text-sm hover:bg-white text-slate-700 transition shadow-sm font-bold"
-            title="Zoom Out"
-            disabled={scale <= 0.6}
-          >
-            –
-          </button>
-          <span className="font-mono text-xs font-medium min-w-[50px] text-center text-slate-600">
-            {Math.round((scale / 1.4) * 100)}%
-          </span>
-          <button
-            onClick={handleZoomIn}
-            className="px-2 py-0.5 rounded text-sm hover:bg-white text-slate-700 transition shadow-sm font-bold"
-            title="Zoom In"
-            disabled={scale >= 3.0}
-          >
-            +
-          </button>
-          <button
-            onClick={handleResetZoom}
-            className="px-2 py-0.5 text-xs rounded hover:bg-white text-slate-500 hover:text-slate-700 border-l border-neutral-300 ml-1 transition"
-            title="Reset Zoom"
-          >
-            Reset
-          </button>
-        </div>
-      </div>
+              <button
+                onClick={handleZoomIn}
+                disabled={scale >= 3.0}
+                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-slate-300 hover:text-white font-bold transition disabled:opacity-30"
+                title="Zoom In"
+              >
+                +
+              </button>
+            </div>
+          </div>
 
-      {/* Scrollable Viewport Canvas Container */}
-      <div className="bg-neutral-100 rounded-md p-3 text-center overflow-auto max-h-[75vh]">
-        <canvas ref={canvasRef} className="shadow-lg bg-white mx-auto block" />
-      </div>
+          {/* Canvas Container */}
+          <div className="flex-1 overflow-auto p-8 flex justify-center items-start">
+            <canvas
+              ref={canvasRef}
+              className="shadow-2xl bg-white rounded-sm transition-all duration-150 ease-out my-auto"
+            />
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }
