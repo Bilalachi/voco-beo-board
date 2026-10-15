@@ -73,11 +73,13 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
     initialPinchDistRef.current = null;
   };
 
+  const isZoomed = zoomScale > 1.01;
+
   return (
     <Modal title="Original BEO" onClose={onClose} wide>
       {error && <p className="text-red-600 text-sm">{error}</p>}
       
-      {/* Exact Original Container with Touch Gesture Support */}
+      {/* Container with Touch Gesture Support and Horizontal/Vertical Scroll */}
       <div
         ref={containerRef}
         className="bg-neutral-100 rounded-md p-3 text-center overflow-auto touch-pan-x touch-pan-y"
@@ -86,17 +88,23 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
         onTouchEnd={handleTouchEnd}
       >
         <div
+          className="inline-block"
           style={{
             transform: `scale(${zoomScale})`,
-            transformOrigin: "center top",
+            transformOrigin: isZoomed ? "left top" : "center top",
             transition: initialPinchDistRef.current ? "none" : "transform 0.15s ease-out",
           }}
         >
-          <canvas ref={canvasRef} className="max-w-full shadow-lg bg-white mx-auto block" />
+          <canvas
+            ref={canvasRef}
+            className={`${
+              isZoomed ? "" : "max-w-full"
+            } shadow-lg bg-white mx-auto block`}
+          />
         </div>
       </div>
 
-      {/* Exact Original Page Navigation Bar (No Zoom Buttons) */}
+      {/* Page Navigation */}
       {numPages > 1 && (
         <div className="flex items-center justify-center gap-4 pt-3">
           <button
