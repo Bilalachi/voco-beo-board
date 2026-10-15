@@ -733,6 +733,14 @@ export function beoToDrafts(doc: BeoDocument): DayDraft[] {
           draft.lunch = { ...base, menu: menuText(f) };
         } else if (kind === 'dinner') {
           draft.dinner = { ...base, menu: menuText(f) };
+        } else if (kind === 'breakfast') {
+          draft.am_break = {
+            time: range12(f),
+            location: f.room,
+            item: menuText(f) || f.function,
+            drinks_time: range12(f),
+            drinks: 'Breakfast Beverage Service',
+          };
         }
       }
 

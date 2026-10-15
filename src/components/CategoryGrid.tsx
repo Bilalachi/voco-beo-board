@@ -41,17 +41,32 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
         return { lines: [""], sub: [d.time, d.location].filter(Boolean).join(" · ") };
       }
 
-      const lines = menuText.split("\n").map((l: string) => l.trim()).filter(Boolean);
-      const foodLines = lines.filter(
-        (l: string) => !/^(open soft drinks|soft drinks|juices|beverages|mineral water|open beverages)/i.test(l)
+      const rawLines = menuText.split("\n").map((l: string) => l.trim()).filter(Boolean);
+
+      // Search every line of the menu text for a recognized meal/buffet title keyword
+      const titleMatch = rawLines.find((l: string) =>
+        /\b(buffet|set menu|cocktail|reception|lebanese|platted|seated|luncheon|dinner)\b/i.test(l)
       );
 
-      const titleMatch = foodLines.find((l: string) =>
-        /set menu|buffet|cocktail|reception|lebanese|platted|seated|menu/i.test(l)
-      );
+      let cleanTitle = "";
 
-      const rawTitle = titleMatch || foodLines[0] || lines[0] || "Menu";
-      const cleanTitle = rawTitle.replace(/[:\-–\s]+$/, "").trim();
+      if (titleMatch) {
+        // Strip out pre-pended stray items (e.g. "English Cake: UN Buffet" -> "UN Buffet")
+        cleanTitle = titleMatch.replace(/^.*?(buffet|set menu|cocktail|reception|lebanese|platted|seated|luncheon|dinner)/i, "$1");
+        
+        // If the matching line was "UN Buffet", restore the full line name
+        if (titleMatch.toLowerCase().includes("un buffet")) {
+          cleanTitle = "UN Buffet";
+        }
+      }
+
+      // If no keyword match was found in raw lines, fallback to a clean title
+      if (!cleanTitle) {
+        cleanTitle = cat.key === "lunch" ? "Lunch Menu" : "Dinner Menu";
+      }
+
+      // Clean trailing colons or punctuation
+      cleanTitle = cleanTitle.replace(/[:\-–\s]+$/, "").trim();
 
       return {
         lines: [cleanTitle],
@@ -64,7 +79,6 @@ function previewFor(ev: BeoEvent, cat: CategoryDef): Preview {
     case "pm_break": {
       const d = ev[cat.key] || {};
       
-      // Safely check d.drinks with a string fallback to satisfy TypeScript
       if (d.drinks_time || d.drinks) {
         let drinksLabel = "Coffee & tea";
         const drinksStr = d.drinks || "";
