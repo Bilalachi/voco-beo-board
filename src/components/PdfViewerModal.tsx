@@ -26,12 +26,6 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
-  useEffect(() => {
-    if (pdfRef.current) {
-      renderPage(pageNum, scale);
-    }
-  }, [scale]);
-
   async function renderPage(n: number, currentScale = scale, pdf = pdfRef.current) {
     if (!pdf || !canvasRef.current) return;
     const page = await pdf.getPage(n);
@@ -44,80 +38,60 @@ export default function PdfViewerModal({ url, onClose }: { url: string; onClose:
     setPageNum(n);
   }
 
-  const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.3, 3.0));
-  const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.3, 0.7));
-  const handleResetZoom = () => setScale(1.4);
+  function handleZoom(delta: number) {
+    const newScale = Math.min(Math.max(scale + delta, 0.8), 3.0);
+    setScale(newScale);
+    renderPage(pageNum, newScale);
+  }
 
   return (
     <Modal title="Original BEO" onClose={onClose} wide>
-      {error ? (
-        <p className="text-red-600 text-sm p-4">{error}</p>
-      ) : (
-        <div className="relative bg-slate-900/5 rounded-xl border border-slate-200 overflow-hidden flex flex-col h-[78vh]">
-          {/* Floating Glassmorphism Toolbar */}
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 bg-slate-900/85 backdrop-blur-md text-white px-4 py-1.5 rounded-full shadow-xl border border-white/10 text-xs select-none">
-            {/* Page Navigation */}
-            {numPages > 1 && (
-              <div className="flex items-center gap-2 border-r border-white/20 pr-3">
-                <button
-                  className="hover:text-blue-400 transition disabled:opacity-30 disabled:hover:text-white"
-                  disabled={pageNum <= 1}
-                  onClick={() => renderPage(pageNum - 1)}
-                >
-                  ◀
-                </button>
-                <span className="font-mono text-[11px] text-slate-300">
-                  {pageNum} / {numPages}
-                </span>
-                <button
-                  className="hover:text-blue-400 transition disabled:opacity-30 disabled:hover:text-white"
-                  disabled={pageNum >= numPages}
-                  onClick={() => renderPage(pageNum + 1)}
-                >
-                  ▶
-                </button>
-              </div>
-            )}
-
-            {/* Zoom Controls */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleZoomOut}
-                disabled={scale <= 0.7}
-                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-slate-300 hover:text-white font-bold transition disabled:opacity-30"
-                title="Zoom Out"
-              >
-                –
-              </button>
-
-              <button
-                onClick={handleResetZoom}
-                className="font-mono text-[11px] text-slate-300 hover:text-white transition px-1"
-                title="Reset Zoom"
-              >
-                {Math.round((scale / 1.4) * 100)}%
-              </button>
-
-              <button
-                onClick={handleZoomIn}
-                disabled={scale >= 3.0}
-                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-slate-300 hover:text-white font-bold transition disabled:opacity-30"
-                title="Zoom In"
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          {/* Canvas Container */}
-          <div className="flex-1 overflow-auto p-8 flex justify-center items-start">
-            <canvas
-              ref={canvasRef}
-              className="shadow-2xl bg-white rounded-sm transition-all duration-150 ease-out my-auto"
-            />
-          </div>
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+      <div className="bg-neutral-100 rounded-md p-3 text-center overflow-auto">
+        <canvas ref={canvasRef} className="max-w-full shadow-lg bg-white mx-auto" />
+      </div>
+      <div className="flex items-center justify-between pt-3">
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-2">
+          <button
+            className="px-3 py-1.5 border rounded-md text-sm hover:bg-neutral-50 font-semibold"
+            onClick={() => handleZoom(-0.3)}
+            title="Zoom Out"
+          >
+            – Zoom
+          </button>
+          <button
+            className="px-3 py-1.5 border rounded-md text-sm hover:bg-neutral-50 font-semibold"
+            onClick={() => handleZoom(0.3)}
+            title="Zoom In"
+          >
+            + Zoom
+          </button>
         </div>
-      )}
+
+        {/* Page Navigation */}
+        {numPages > 1 && (
+          <div className="flex items-center gap-4">
+            <button
+              className="px-3 py-1.5 border rounded-md text-sm disabled:opacity-40"
+              disabled={pageNum <= 1}
+              onClick={() => renderPage(pageNum - 1)}
+            >
+              ‹ Prev
+            </button>
+            <span className="font-mono text-sm text-ink-soft">
+              {pageNum} / {numPages}
+            </span>
+            <button
+              className="px-3 py-1.5 border rounded-md text-sm disabled:opacity-40"
+              disabled={pageNum >= numPages}
+              onClick={() => renderPage(pageNum + 1)}
+            >
+              Next ›
+            </button>
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }
